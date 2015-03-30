@@ -1,4 +1,5 @@
 import numbers, re, array, collections, struct, math
+import stringhelper, bithelper
 
 # namedstruct library
 # allows creation of binary files like you would build a json file, by just adding
@@ -171,7 +172,7 @@ def generateHeader(structs,constantPools=None,namespace=None,define=None,headTex
     if define == None: define = "__"+structs[0].getType().getName().upper()+"__"
     namespaceString = ""
     if namespace!=None:
-        _assertIsValidIdentifier(namespace)
+        stringhelper.assertIsValidIdentifier(namespace)
         namespaceString = "namespace %s {\n" % namespace
     
     # get all types
@@ -309,7 +310,7 @@ def getAllTypes(typeList):
 
 # ############# CONSTANTS ##################################################################
 # an object that has the add constant functions - they all get dispatched to "addConstant"
-class AddConstantFunctions:
+class AddConstantFunctions(object):
     def addConstant(self,name,value): # should return self
         raise Exception("not implemented")
     def addInt32Constant(self,name,value): return self.addConstant(name,IntValue(_dictGet(value,name),False,32))
@@ -509,7 +510,7 @@ class BitFieldType(Type):
                 result = result + ("{indent}/** {bitWidth:2} bit{s} */ inline int get{fieldName}() {space}const {{"+
                                    " return (bits >> {shift:2}) & {mask}; "+
                                    "}}\n").format(
-                                       indent=indent, fieldName=_capitalizeFirst(fieldName),
+                                       indent=indent, fieldName=stringhelper.capitalizeFirst(fieldName),
                                        shift=shift, mask=mask, s=s, space=space, bitWidth=fieldWidth)
                 shift = shift + fieldWidth
         return result + "} " + self.getName() + ";"
@@ -568,7 +569,7 @@ class ReferenceType(Type):
                 +(self.targetType.getUniqueName() if self.targetType != None else "0"))
     def getAccessorFunction(self,memberName,indent=indent):
           memberTypeName = self.targetType.getName() if self.targetType != None else "void"
-          functionName = "get"+_capitalizeFirst(memberName);
+          functionName = "get"+stringhelper.capitalizeFirst(memberName);
           functionCode = (
               "/** Returns {memberTypeName}-pointer to member {memberName}.\n"+
               " *  If {memberName} is null/void then the result is undefined. */\n"+
@@ -735,7 +736,7 @@ class StructType(Type,AddConstantFunctions):
         # check validity
         if name in self.members: raise Exception("name %s already in struct %s" % (name,self.name))
         assert(isinstance(type,Type))
-        _assertIsValidIdentifier(name)
+        stringhelper.assertIsValidIdentifier(name)
         padding = self.addPadding(type.getAlignment())
         # actually add member
         self.members[name] = len(self.offsets)
@@ -852,7 +853,7 @@ class BitFieldArrayType(Type):
         if len(fields) == 0:
             raise Exception("BitFieldArrayType needs at least one field")
         for field in fields:
-            _assertIsValidIdentifier(field)
+            stringhelper.assertIsValidIdentifier(field)
             assert(field != 'bitFieldArrayEntryBits')
         self.fields = fields
     def getFields(self):
@@ -925,7 +926,7 @@ class BitFieldArrayType(Type):
 {indent}{indent}const int bitOffset = {field}BitOffset + index*bitFieldArrayEntryBits;
 {indent}{indent}const int nextBitOffset = {nextBitOffset};
 {indent}{indent}return namedstruct::readBits(this, bitOffset, nextBitOffset-{field}BitOffset);
-{indent}}}""".format(field=field,indent=indent,nextBitOffset=nextBitOffset,Field=_capitalizeFirst(field))
+{indent}}}""".format(field=field,indent=indent,nextBitOffset=nextBitOffset,Field=stringhelper.capitalizeFirst(field))
         
         # finish
         result = result + "\n} " + self.getName() + ";"
@@ -945,7 +946,7 @@ class BitFieldArrayType(Type):
     
 
 # ############# VALUES ######################################################################
-class Value():
+class Value(object):
     def __init__(self,type):
         self.type = type;
     def getAlignement():
@@ -999,7 +1000,7 @@ class CharValue(PrimitiveValue):
         type = CharType()
         PrimitiveValue.__init__(self,type,char)
     def getLiteral(self):
-        return _literalFromString(self.getPythonValue(),quote="'")
+        return stringhelper.literalFromString(self.getPythonValue(),quote="'")
 
 # an integer that acts as a bit field
 class BitField(Value):
@@ -1165,17 +1166,17 @@ class SimpleArray(ArrayValue):
 # c array of chars - arbitrary strings get converted to utf-8
 class StringValue(SimpleArray):
     def __init__(self,string="",fixedSize=None,omitTerminal=False):
-        chars = stringToChars(string)
+        chars = stringhelper.stringToChars(string)
         if omitTerminal:
             chars = chars[:-1]
         SimpleArray.__init__(self,CharType(),chars,fixedSize)
         self.string = string
     def pretty(self):
-        return _cutStringIfTooLong(repr(self.string))
+        return stringhelper.cutStringIfTooLong(repr(self.string))
     def getPythonValue(self):
         return self.string
     def getLiteral(self):
-        return _literalFromString(self.string)
+        return stringhelper.literalFromString(self.string)
 
 
 # c array of chars - but inputs as arrays of 0/1 (bit) values, packed into 8 bits per char
@@ -1186,15 +1187,15 @@ class BlobValue(SimpleArray):
         global blobStrings
         blobStrings.append(blob)
         if isinstance(blob, basestring):
-            bitArrays = [_toBits(ord(c),numBits=8) for c in blob]
+            bitArrays = [bithelper.toBits(ord(c),numBits=8) for c in blob]
             blob = []
             for bitArray in bitArrays:
                 blob.extend(bitArray)
         blob = array.array('B',blob) # turn blob into an actual binary array - if it's not a string
-        SimpleArray.__init__(self,CharType(),_packBitsToChars(blob),fixedSize,byteAlignment)
+        SimpleArray.__init__(self,CharType(),bithelper.packBitsToChars(blob),fixedSize,byteAlignment)
         self.blob=blob
     def pretty(self):
-        return _cutStringIfTooLong("["+''.join(str(b) for b in self.blob[0:200])+"]",length=len(self.blob))
+        return stringhelper.cutStringIfTooLong("["+''.join(str(b) for b in self.blob[0:200])+"]",length=len(self.blob))
     def getPythonValue(self):
         return self.blob
 
@@ -1522,15 +1523,15 @@ class BitFieldArray(Value):
         return [
             max(len(entry[fieldIndex][1].getPythonValue())
                 if entry[fieldIndex][0] else
-                _requiredBits(entry[fieldIndex][1])
+                bithelper.requiredBits(entry[fieldIndex][1])
                 for entry in self.entries)
             for fieldIndex in range(len(fields))]
     def pretty(self):
         fields = self.type.getFields()
         fieldLengths = self.getFieldLengths()
         result = "bitFieldArray[{length}x{numBits}]{{".format(length=len(self.entries),numBits=sum(fieldLengths))
-        rows = [indent+s+":" for s in _getColumn(fields)]
-        rows = [rows[i]+s+" = [" for i,s in enumerate(_getColumn(fieldLengths))]
+        rows = [indent+s+":" for s in stringhelper.getColumn(fields)]
+        rows = [rows[i]+s+" = [" for i,s in enumerate(stringhelper.getColumn(fieldLengths))]
         maxColumnWidth = 80
         maxEntryWidth = 12
         numEntries = len(self.entries)
@@ -1545,7 +1546,7 @@ class BitFieldArray(Value):
                     values.append(blob)
                 else:
                     values.append(value)
-            strings = _getColumn(values)
+            strings = stringhelper.getColumn(values)
             # stop if rows grow too big
             if len(rows[0])+1+len(strings[0]) > maxColumnWidth:
                 if i < numEntries:
@@ -1575,7 +1576,7 @@ class BitFieldArray(Value):
                     blob.extend(b)
                     blob.extend((fieldLengths[i]-len(b))*array.array('B',[0]))
                 else:
-                    blob.extend(array.array('B',_toBits(value,fieldLengths[i])))
+                    blob.extend(array.array('B',bithelper.toBits(value,fieldLengths[i])))
         data = pack(BlobValue(blob))
         assert(len(blob)==sum(fieldLengths)*len(self.entries))
         return header+data,""
@@ -1587,10 +1588,6 @@ class BitFieldArray(Value):
 def _dictGet(value,name):
     return value[name] if isinstance(value,dict) else value
 
-# takes a string and returns it as a null terminated string of chars
-def stringToChars(string):
-    return string.encode("utf-8")+"\0"
-
 # given two types, merges them, but if one of them is NullType, returns the other type
 def _mergeTypes(typeA,typeB):
     if isinstance(typeA,NullType): 
@@ -1598,79 +1595,6 @@ def _mergeTypes(typeA,typeB):
     if isinstance(typeB,NullType):
         return typeA
     return typeA.merge(typeB)
-
-
-# given a string such as "[abccdefghijklmnopqrstuvwxyz]", will ensure the maximum length of the string 
-# is at most maxLength, for example if the max length is 15, it will return "26:[abcdefg...]"
-maxRepresentationLength = 60;
-def _cutStringIfTooLong(string,maxLength=maxRepresentationLength,length=None):
-    if length == None:
-        length = len(string)
-    if len(string)<=maxLength:
-        return string
-    head = str(length)+":"
-    tail = "..."+string[-1]
-    return head + string[0:maxLength-len(head)-len(tail)] + tail
-
-
-# takes an array of bits, and returns them as a string (i.e. char array)
-# this operation should be indemptotent, i.e. a string will be returned as is
-def _packBitsToChars(bits):
-    if isinstance(bits, basestring):
-        for c in bits:
-            if (ord(c) < 0 or ord(c) > 255): raise Exception("blob strings myst be made of 8-bit chars, but found "+repr(c))
-        return bits
-    c = 0
-    numBits = 0
-    result = []
-    for b in bits:
-        if not (b==0 or b==1):
-            raise Exception("blobs can only be made from sequences of 0,1 values")
-        if (numBits == 8):
-            result.append(c)
-            c = 0
-            numBits = 0
-        c = c + (b << numBits)
-        numBits += 1
-    if (numBits > 0):
-        result.append(c)
-    return struct.pack("<"+str(len(result))+"B",*result)
-
-# given a set of values, returns a format string that will give all values the same length.
-# max length will force a max length. default will be used if len(values) = 0
-def _getColumnFormat(values,maxLength=None,default=1,rightAlign=True):
-    length = default
-    if len(values) > 0:
-        length = max(len(str(v)) for v in values)
-    align = "+" if rightAlign else "-"
-    if maxLength != None and length >= maxLength:
-        length = maxLength
-    return "%{align}{length}.{length}s".format(align=align,length=length)
-
-
-# uses get column format to build a column of values, returns a string for every inputted value
-def _getColumn(values,maxLength=None,rightAlign=True):
-    if len(values) == 0: return []
-    columnFormat = _getColumnFormat(values,maxLength=maxLength,rightAlign=rightAlign)
-    return [columnFormat % str(v) for v in values]
-
-
-# given a string, returns a copy with the first letter capitalized, and the others unchanged
-def _capitalizeFirst(string):
-  return string[0].upper() + string[1:];
-
-
-def _escapeChar(char):
-    r = repr(char)
-    if r[0] == 'u': r = r[1:] # remove leading string char
-    assert (r[0] == '"' and r[-1] == '"') or (r[0] == "'" and r[-1] == "'")
-    r = r[1:-1]
-    if r == "'": return "\\'"
-    if r == '"': return '\\"'
-    return r
-
-def _literalFromString(string,quote='"'):
-    return quote + "".join(_escapeChar(c) for c in string) + quote
 
 
 # given two types, will ensure that 
@@ -1687,343 +1611,7 @@ def _typeEqualAssert(typeA,typeB,*keys):
                             +repr(valueA)+" vs "+repr(valueB))
 
 
-# checks whether a given name is a valid identifier in c++. Throws an exception if it isn't.
-def _assertIsValidIdentifier(name):
-    if not _identifierMatchObject.match(name):
-        raise Exception(repr(name)+" not a valid identifier")
-    if name.endswith("ByteOffset"): 
-        raise Exception(repr(name)+" - an identifier may not end with ByteOffset, that suffix is reserved for internal use.")
-    if name in _cPlusPlusKeywords: raise Exception(repr(name)+" cannot be an identifier, it is a C/C++ keyword")
 
-_identifierMatchObject = re.compile('^[_a-zA-z][0-9_a-zA-Z]*')
-_cPlusPlusKeywords = frozenset(["alignas","alignof","and","and_eq","asm","auto","bitand","bitor",
-    "bool","break","case","catch","char","char16_t","char32_t","class","compl","const","constexpr",
-    "const_cast","continue","decltype","default","delete","do","double","dynamic_cast","else","enum",
-    "explicit","export","extern","false","float","for","friend","goto","if","inline","int","long",
-    "mutable","namespace","new","noexcept","not","not_eq","nullptr","operator","or","or_eq","private",
-    "protected","public","register","reinterpret_cast","return","short","signed","sizeof","static",
-    "static_assert","static_cast","struct","switch","template","this","thread_local","throw","true",
-    "try","typedef","typeid","typename","union","unsigned","using","virtual","void","volatile",
-    "wchar_t","while","xor","xor_eq"])
-
-
-# returns the number of bits required to store the number
-# 0 -> 0, 255 -> 8, 256 -> 9
-def _requiredBits(number):
-  if (number == 0): return 0
-  return int(math.log(number,2)) + 1
-
-# returns a postive number as an array of bits
-# numBits forces 0-bits to be added so that the len of the result is numBits
-# if the number of required bits is longer than numBits, throws an exception
-def _toBits(number,numBits=None):
-  theNumber = number
-  if (number < 0): raise Exception("received negative number "+str(number))
-  if (int(number) != number): raise Exception("received non int-number "+str(number))
-  bits = []
-  while (number>0):
-    bits.append(number & 1)
-    number = number >> 1;
-  if numBits == None: return bits
-  if (len(bits) > numBits): raise Exception("number %d doesn't fit in %d bits" % (theNumber,numBits));
-  return bits+[0]*(numBits-len(bits)) #add 0 bits
-
-
-# ########## TESTING ###################################################################################
-def generateTests(quiet=False):
-  testStructs = []
-  def add(s):
-    if not quiet:
-      print "**************************************"
-      print "Test",("s%d" % len(testStructs))+":",s
-      print "pretty:"
-      print s.pretty()
-      print "packed:"
-      print repr(pack(s))
-    testStructs.append(s)
-  
-  add(Struct("testStruct0"))
-  
-  add(Struct("testStruct1")
-      .addInt32("bla",234))
-  
-  add(Struct("testStruct2")
-      .addInt8("woot",59))
-  
-  add(Struct('testStruct3')
-      .addInt8('four',4)
-      .add("nestedMember",
-           Struct("testNestedStruct0")
-           .addInt8("bla",23)))
-  
-  add(Struct("testStruct4")
-      .addString("hello","hello world!"))
-  
-  add(Struct("testStruct5")
-      .addString("unicodeString",u'Soci\xe9t\xe9 de transport de Montr\xe9al'))
-  
-  add(Struct("testStruct6")
-      .addBlob("myBlob",[0,1,0,0,1,0,0,1]))
-  
-  d = {
-    "anInt8": 8,
-    "anInt32": -32,
-    "anUint32": 32,
-    "aString": "hello world",
-    "aBlob": [0,1,1,0,0,0,1],
-  }
-  add(Struct("testStruct7")
-      .addInt8  ("anInt8"  ,d)
-      .addInt32 ("anInt32" ,d)
-      .addUInt32("anUint32",d)
-      .addString("aString" ,d)
-      .addBlob  ("aBlob"   ,d))
-  
-
-  blob = []
-  for i in range(1000):
-    number = i;
-    while (number>0):
-      blob.append(number & 1)
-      number = number >> 1;
-  add(Struct("testStruct8")
-      .addBlob("longBlob",blob))
-
-
-  add(Struct("testStruct9")
-      .addString("longString",
-                 '-'.join(str(i) for i in range(100))))
-  
-  add(Struct("testStruct10")
-      .addInt32Constant("EVERYTHING",43)
-      .addConstant("FOO",0)
-      .addConstant("LABEL","this is a label")
-      .addConstant("QUOTE",'"'))
-  
-
-  
-  add(Struct("testStruct11")
-      .addInt32("value",1)
-      .add("next",
-           Struct("testStruct11")
-           .addInt32 ("value",2)
-           .add("next",None)))
-  
-  add(Struct("testStruct12")
-      .add("anotherStruct",
-           Struct("testNestedStruct1")
-           .addInt8("anotherValue",123))
-      .addInt8("aValue",4))
-
-  add(Struct("testStruct13")
-      .addInt8("x",4)
-      .addImmediate("immediateStruct",
-                    Struct("testNestedStruct2")
-                    .addInt32("y",-123)))
-
-  add(Struct("testStruct14")
-      .add("number",23)
-      .add("string","helluWorld")
-      .add("ref",None))
-  
-  add(Struct("testStruct15")
-      .addImmediate("immedateString","something something..."))
-
-  add(Struct("testStruct16")
-      .add("fixedString",StringValue("yet another",30))
-      .addImmediate("nonFixedString","fooBar"));
-
-  add(Struct("testStruct17")
-      .addArray("structArray",[Struct("elementStruct0").add("name","John").addInt8("x",7).finalize(),
-                               Struct("elementStruct0").add("name","Jane").addInt8("x",13).finalize(),
-                               Struct("elementStruct0").add("name","Bob"). addInt8("x",37).finalize()]))
-
-  add(Struct("testStruct18")
-      .addArray("structArray",[Struct("elementStruct1").addInt8("foo",7).finalize(),
-                               Struct("elementStruct1").addInt8("foo",9).finalize()],
-                3)
-      .add("x",234))
-
-  add(Struct("testStruct19")
-      .addArray("structArray",[Struct("elementStruct2").add("aname","Blob").finalize(),
-                               Struct("elementStruct2").add("aname","Blubb").finalize()],
-                2)
-      .add("xyz",34))
-
-  add(Struct("testStruct20")
-      .addChar("aChar","!")
-      .addChar("bChar","'")
-      .addChar("cChar",'"')
-      .addChar("dChar","\n"))
-  
-  add(Struct("testStruct21")
-      .addCharConstant("a","!")
-      .addCharConstant("b","'")
-      .addCharConstant("c",'"')
-      .addCharConstant("d","\n")
-      .addCharConstant("e","\x00"))
-
-
-  add(Struct("testStruct22")
-      .add("magic",StringValue("abcd",4,True))
-      .addChar("end","!"))
-
-  add(Struct("testStruct23")
-      .addString("noString",None))
-
-  add(Struct("testStruct24")
-      .addArray("structArray",[Struct("elementStruct3").add("maybeString",None).finalize(),
-                               Struct("elementStruct3").add("maybeString","omg yes!").finalize()],
-                2))
-  
-  add(Struct("testStruct25")
-      .addReference("a",StringValue("this is a string"),8)
-      .addString("b","this is another string",referenceBitWidth=8)
-      .addReference("c",StringValue("aaand another"),16)
-      .addReference("d",StringValue("this is the last"),32))
-
-  add(Struct("testStruct26")
-      .addArray("refArray",["test","foo","bar"]))
-
-  add(Struct("testStruct27")
-      .addArray("bRefArray",[None,"foo",None]))
-
-  add(Struct("testStruct28")
-      .addArray("cRefArray",[NullValue()]))
-
-  add(Struct("testStruct29")
-      .addReferenceArray("rArray",
-                         [Struct("elementStruct4").add("age",56).addImmediate("name","Vader"),
-                          Struct("elementStruct4").add("age",22).addImmediate("name","Luc"),
-                          Struct("elementStruct4").add("age",22).addImmediate("name","Lea")]))
-  
-  add(Struct("testStruct30")
-      .addReferenceArray("strings",
-                         ["Mercury","Venus","Earth","Mars","Jupiter","Saturn","Uranus","Neptune",None],
-                         referenceBitWidth = 8))
-  
-  add(Struct("testStruct31")
-      .addReferenceArray("array",
-                         [[4,5,6],[2,3],[5,6,7,7]],
-                         referenceBitWidth = 16)
-      .add("sizes",[3,2,4]))
-      
-  add(Struct("testStruct32")
-      .addReferenceArray("fixedArray",[None,"foo","bar"],fixedSize=4)
-      .add("terminal",12345))
-  
-
-  add(Struct("testStruct33")
-      .addReferenceArray("refsrefsrefs",
-                         [ReferenceArrayValue([ReferenceArrayValue(["foo","bar"],2),
-                                               ReferenceArrayValue([None,None],2),
-                                               ReferenceArrayValue(["abcdefghijklmnopqrstuvwxyz"],2)],
-                                              referenceBitWidth=16),
-                          ReferenceArrayValue([ReferenceArrayValue(["2_foo","bar_2"],2),
-                                               ReferenceArrayValue([None,"some!"],2),
-                                               ReferenceArrayValue(["not again"],2)],
-                                              referenceBitWidth=16)])
-      .add("terminal",123456))
-  
-
-  add(Struct("testStruct34")
-      .add("flags",
-           BitField("bitField1",8)
-           .add("aFlag",1)
-           .add("bFlag",0)
-           .add("cFlag",1)
-           .add("values",3,2))
-      .add("smallInts",
-           BitField("bitField2",16)
-           .add("aFlag",0)
-           .add("b",127,7)
-           .add("c",0,3)
-           .add("d",7,5))
-      .add("terminal",567))
-  
-
-  add(Struct("testStruct35")
-      .addArray("dates",[BitField("timeBitField",32)
-                         .add("year",  2011,11)
-                         .add("month", 11,  4)
-                         .add("day",   11,  5)
-                         .add("hour",  9,   5)
-                         .add("minute",23,  6),
-                         BitField("timeBitField",32)
-                         .add("year",  2012,11)
-                         .add("month", 12,  4)
-                         .add("day",   12,  5)
-                         .add("hour",  10,  5)
-                         .add("minute",24,  6)]))
-  
-  
-  add(Struct("testStruct36")
-      .add("s0",Struct("testNestedStruct3").addUInt8 ("x",0xab).addUInt8("y",0xab))
-      .add("s1",Struct("testNestedStruct4").addUInt16("x",0xacac))
-      .add("s2",Struct("testNestedStruct5").addUInt32("x",0xadadadad))
-      .add("s3",Struct("testNestedStruct6").addUInt64("x",0xaeaeaeaeafafafaf).addUInt64("y",0x8182838485868788))
-      .addUInt8("terminal",0xff))
-
-                                         
-  add(Struct("testStruct37")
-      .addReference("stringRef",None,targetType=StringValue().getType())
-      .addNullReference("bitFieldReference",BitField("bitField2").add("aField",0,13).getType())
-      .addNullReference("int8ArrayRef",SimpleArray(INT8,[],16),referenceBitWidth=16)
-      .addReference("uint8Ref",None,referenceBitWidth=8,targetType=INT8))
-
-
-  add(Struct("testStruct38")
-      .add("bitArray",
-           BitFieldArray("BitBitArray","bit")
-           .add([0]).add([1]).add([1]).add([0]).add([0]).add([1]).add([0]).add([1])))
-
-  add(Struct("testStruct39")
-      .add("pairArray",
-           BitFieldArray("PairBitArray","a","b")
-           .add([0,12]).add([0,4]).add([0,0]).add([0,63])))
-
-  add(Struct("testStruct40")
-      .addImmediate("bitArray",
-                    BitFieldArray("ABFooBitArray","a","b","foo")
-                    .add([3,4,5])
-                    .add([10,0,3])
-                    .add([BlobValue([0,0,1,0,0,1]),BlobValue([0]*50),0])
-                    .add([0,0,0])
-                    .add([2**30,0,0])
-                    .add([2**30,0,0])
-                    .add([2**30,0,0])
-                    .add([2**30,0,1])
-                    .add([2**30,0,2])))
-
-  add(Struct("testStruct41A")
-      .addImmediate("bitArray",
-                    BitFieldArray("VarBitArrayA","a","b")
-                    .add([1,0])
-                    .add([1,0])
-                    .add([0,0])))
-
-  add(Struct("testStruct41B")
-      .addImmediate("bitArray",
-                    BitFieldArray("VarBitArrayB","a","b","c")
-                    .add([1,0,32])
-                    .add([1,0,17])
-                    .add([0,0,42])))
-
-  add(Struct("testStruct41C")
-      .addImmediate("bitArray",
-                    BitFieldArray("VarBitArrayC","a","b","c","d")
-                    .add([1,0,32,23])
-                    .add([1,0,17,53])
-                    .add([0,0,42,59])))
-
-
-  pool = ConstantPool().addConstant("THREE",3)
-  
-  if not quiet:
-    print "**** all headers *********************"
-    print generateHeader(testStructs,pool,namespace="namedStructTest",define="__NAMEDSTRUCTTEST__",
-                         headText="/* Testing structs generated by namedstructpy */")
-  return testStructs
 
 
 
