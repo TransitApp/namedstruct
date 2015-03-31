@@ -1,5 +1,7 @@
 import re
 
+indent = " "*4
+
 # ********** packing *********************************************************
 # takes a string and returns it as a null terminated string of chars
 def stringToChars(string):
