@@ -34,7 +34,6 @@ import stringhelper, bithelper, values, types, constants
 #   data = namedstruct.pack(s) # returns a binary string, that can be written via open(..,"wb").write(..)
 
 
-
 # this offset has to follow the required alignment
 # padding bytes may have to be added at the reference data offset
 # value.pack(last struct offset, offset where referred data starts)
@@ -57,6 +56,8 @@ import stringhelper, bithelper, values, types, constants
 #   - when using a null reference, the type doesn't appear to get included in the result
 #
 # TODO:
+#   - type -> module that has python constructors of values of that type -- declare/enforce types like that (?)
+#
 #   - exception on overriding constant?
 #   - make a variableBitUIntArray
 #   - deal with empty blobs ... their data shouldn't take up space, should they be zero? point to 1?

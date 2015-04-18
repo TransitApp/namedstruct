@@ -2,6 +2,10 @@ from values import *
 from namedstruct import pack
 import constants
 
+# TODO 
+# - test equality operators:
+#     bitfields
+
 def generateTests(quiet=False):
   testStructs = []
   def add(s):
