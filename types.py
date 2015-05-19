@@ -546,7 +546,6 @@ class StructType(Type, constants.AddConstantFunctions):
 
         # add equal
         if self.hasEqualMethod():
-            print "equals for"+self.getName()
             result += """{indent}
 {indent}bool operator==(const {name}& other) const {{
 {indent}{indent}return {prefix}{comparisonExpression}{postfix};
