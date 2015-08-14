@@ -58,6 +58,8 @@ class Type(object):
         raise Exception("unimplemented for "+repr(self))
     def getWidth(self):
         raise Exception("unimplemented for "+repr(self))
+    def hasEqualMethod(self):
+        return False
     def assertValueHasType(self,aValue):
         raise Exception("cannot verify whether "+repr(aValue)+" matches type "+repr(self))
     def __repr__(self):
@@ -85,6 +87,8 @@ class PrimitiveType(Type):
         f="<" # format prefix defining little endian, standard encoding
         formatChar = self.getFormatChar()
         return struct.pack(f+formatChar,aPythonValue)
+    def hasEqualMethod(self):
+        return True
     def assertValueHasType(self,aValue):
         self.pack(aValue)
 
@@ -171,6 +175,8 @@ class BitFieldType(Type):
         return True;
     def getWidth(self):
         return self.dataType.getWidth()
+    def hasEqualMethod(self):
+        return True
     def getForwardDeclaration(self):
         return "struct "+self.getName()+";"
     def getDeclaration(self,indent=stringhelper.indent):
@@ -193,7 +199,19 @@ class BitFieldType(Type):
                                        indent=stringhelper.indent, fieldName=stringhelper.capitalizeFirst(fieldName),
                                        shift=shift, mask=mask, s=s, space=space, bitWidth=fieldWidth)
                 shift = shift + fieldWidth
-        return result + "} " + self.getName() + ";"
+            
+            mask = "0x%X" % ((1 << sum(self.fieldWidths)) - 1)
+            result += """{indent}
+{indent}inline bool operator==(const {name} other) const {{
+{indent}{indent}return (bits & {mask}) == (other.bits & {mask});
+{indent}}}
+{indent}
+{indent}inline bool operator!=(const {name} other) const {{
+{indent}{indent}return not (*this == other);
+{indent}}}
+}} {name};
+""".format(name=self.getName(), indent=indent, mask=mask)
+            return result;
     def merge(self,other):
         _typeEqualAssert(self,other,"name","fieldNames","fieldWidths")
         return self
@@ -307,6 +325,8 @@ class SimpleArrayType(ArrayType):
             return self.fixedSize * self.elementType.getWidth()
         else:
             raise Exception("non-fixed array has no width")
+    def hasEqualMethod(self):
+        return self.fixedSize != None
     def merge(self,other):
         _typeEqualAssert(self,other,"fixedSize","alignment")
         t1 = self.elementType
@@ -434,6 +454,9 @@ class StructType(Type, constants.AddConstantFunctions):
         if self.mutable:
             raise Exception("cannot ask the width of non-finished struct type "+repr(self))
         return self.getCurrentWidth()
+
+    def hasEqualMethod(self):
+        return all(t.hasEqualMethod() for t in self.types)
     
     def getCurrentWidth(self):
         if len(self.offsets) == 0: return 0
@@ -521,6 +544,22 @@ class StructType(Type, constants.AddConstantFunctions):
         if len(functions) > 0:
             result = result + functions[:-len(indent)]
 
+        # add equal
+        if self.hasEqualMethod():
+            result += """{indent}
+{indent}bool operator==(const {name}& other) const {{
+{indent}{indent}return {prefix}{comparisonExpression}{postfix};
+{indent}}}
+{indent}
+{indent}bool operator!=(const {name}& other) const {{
+{indent}{indent}return not (*this == other);
+{indent}}}
+""".format(name = self.getName(),
+           indent = indent,
+           prefix = "(    " if len(self.names) > 1 else "",
+           postfix = ")" if len(self.names) > 1 else "",
+           comparisonExpression = (("\n{i}{i}        and ".format(i=indent))
+                                   .join("{name} == other.{name}".format(name = n) for n in self.names)))
         # finish
         result = result + "} " + self.getName() + ";"
         return result

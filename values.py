@@ -580,12 +580,17 @@ class BitFieldArray(Value):
         self.entries = [] # each entry is an array of (isBlob,value)
     def __repr__(self):
         return "<BitFieldArray:%s with %d fields>" % (self.type.getName(),len(self.type.getFields()))
+    def __len__(self):
+        return len(self.entries)
     # adds a new entry to the bit field array
     # the fieldValues may be a dictionary of field-value, or a sequence of values in the same order as the fields
     # the values themselves may be (positive) integers, or Blob objects
-    def add(self,fieldValues):
+    def add(self,fieldValues=None,**fieldValuesDict):
+        if fieldValues==None:
+            fieldValues = fieldValuesDict
         fields = self.type.getFields()
-        assert(len(fields) == len(fieldValues))
+        if len(fields) != len(fieldValues):
+            raise Exception("expecting %d field values, received %s" % (len(fields), fieldValues))
         if isinstance(fieldValues,dict):
             fieldValues = [fieldValues[field] for field in fields]
         entry = []
