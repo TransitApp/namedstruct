@@ -56,7 +56,20 @@ import stringhelper, bithelper, values, types, constants
 #   - when using a null reference, the type doesn't appear to get included in the result
 #
 # TODO:
+#   - PEP8
+#   - remove the 'add' methods, maybe just do 
+#        Struct("foo").int32('x',x).uint8('y',y).char('c',c)
 #   - type -> module that has python constructors of values of that type -- declare/enforce types like that (?)
+#   - schemas. requires:
+#      - possibility to build types like one builds values StructType('foo').int32('x').uint8('y').char('c')
+#      - possibility to create values from types
+#           t.getValue(object)
+#        -> this should create a namedstruct value with the given type, for structs it should support dicts (or anything with __contains__, __getitem__)
+#      - implement getitem, setitem for namedstruct values
+#        - assigning a member should use t.getValue(...)
+#      - toPythonValue -> maybe return a directionary for structs?
+#      - createBitFieldArray from sequence of dictionaries - where they all have the same keys
+#      - create schemas: create schemas like the c-headers
 #
 #   - exception on overriding constant?
 #   - make a variableBitUIntArray
