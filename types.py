@@ -629,23 +629,32 @@ class BitFieldArrayType(Type):
                 nextBitOffset = self.fields[i+1]+"BitOffset"
             result += """{indent}
 {indent}
-{indent}/** returns the bit offset of field {field} at the given index */
+{indent}/** returns the bit offset of field {field} at the given index, assuming it is present */
 {indent}inline int get{Field}BitOffset(int index) const {{
 {indent}{indent}return {field}BitOffset + index*bitFieldArrayEntryBits;
 {indent}}}
 {indent}
+{indent}/** returns the bit offset of field {field} at the given index, assuming it is present */
+{indent}inline int has{Field}() const {{
+{indent}{indent}return getNumFields() > {i};
+{indent}}}
 {indent}
-{indent}/** returns the number of bits used by field {field} */
+{indent}/** returns the number of bits used by field {field}, assuming it is present */
 {indent}inline int get{Field}NumBits() const {{
 {indent}{indent}return {nextBitOffset} - {field}BitOffset;
 {indent}}}
 {indent}
-{indent}/** returns the value of the field {field} at the given index, assuming it has <=31 bits */
+{indent}/** returns the value of the field {field} at the given index, assuming it is present, and assuming it has <=31 bits */
 {indent}inline uint32_t get{Field}(int index) const {{
 {indent}{indent}const int bitOffset = {field}BitOffset + index*bitFieldArrayEntryBits;
 {indent}{indent}const int nextBitOffset = {nextBitOffset};
 {indent}{indent}return namedstruct::readBits(this, bitOffset, nextBitOffset-{field}BitOffset);
-{indent}}}""".format(field=field,indent=stringhelper.indent,nextBitOffset=nextBitOffset,Field=stringhelper.capitalizeFirst(field))
+{indent}}}
+{indent}
+{indent}/** returns the value of the field {field} at the given index, assuming it has <= 31 bits, or the default the field is not present. */
+{indent}inline uint32_t get{Field}OrDefault(int index, int defaultValue = 0) const {{
+{indent}{indent}return has{Field}() ? get{Field}(index) : defaultValue;
+{indent}}}""".format(i=i,field=field,indent=stringhelper.indent,nextBitOffset=nextBitOffset,Field=stringhelper.capitalizeFirst(field))
         
         # finish
         result = result + "\n} " + self.getName() + ";"
