@@ -56,6 +56,8 @@ import stringhelper, bithelper, values, types, constants
 #   - when using a null reference, the type doesn't appear to get included in the result
 #
 # TODO:
+#   - create methods like addUint32Array(numbers, referenceBitWidth=32)
+#   - create a struct array with fixed structs, but an element size so that the structs are expandable (maybe also number of elements?)
 #   - PEP8
 #   - remove the 'add' methods, maybe just do 
 #        Struct("foo").int32('x',x).uint8('y',y).char('c',c)
