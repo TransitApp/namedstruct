@@ -505,6 +505,7 @@ class StructType(Type, constants.AddConstantFunctions):
             else:
                 result.addMember(name,t1)
         result.mutable = self.mutable
+        result.constantPool = self.constantPool # FIXME - This is a hack! Properly deal with cosntant pools!
         return result
 
     def getForwardDeclaration(self):
