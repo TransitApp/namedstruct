@@ -317,7 +317,7 @@ class SimpleArrayType(ArrayType):
     def getDeclarationNameSuffix(self):
         return self.suffix
     def isImmediate(self):
-        return self.fixedSize;
+        return self.fixedSize is not None
     def getAlignment(self):
         return self.alignment
     def getWidth(self):
