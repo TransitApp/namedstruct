@@ -175,7 +175,7 @@ class Reference(Value):
             # add padding bytes until data offset is aligned with target type
             padding = ((-dataOffset) % self.type.targetType.getAlignment())
             packedReference = self.type.referenceType.pack(dataOffset + padding)
-            packedData = "\x00"*padding + namedstruct.pack(self.targetValue)
+            packedData = "\x00"*padding + namedstruct.pack(self.targetValue, addPadding=False)
             return packedReference,packedData
 
 
@@ -667,7 +667,7 @@ class BitFieldArray(Value):
         fieldLengths = self.getFieldLengths()
         offset = (len(fieldLengths) + 2)*16
         headerValues = [sum(fieldLengths)]+[offset + sum(fieldLengths[:i]) for i in range(len(fieldLengths)+1)]
-        header = namedstruct.pack(SimpleArray(types.UINT16,headerValues))
+        header = namedstruct.pack(SimpleArray(types.UINT16,headerValues), addPadding=False)
         # create data blob
         blob = array.array('B',[])
         for entry in self.entries:
@@ -678,7 +678,7 @@ class BitFieldArray(Value):
                     blob.extend((fieldLengths[i]-len(b))*array.array('B',[0]))
                 else:
                     blob.extend(array.array('B',bithelper.toBits(value,fieldLengths[i])))
-        data = namedstruct.pack(Blob(blob))
+        data = namedstruct.pack(Blob(blob), addPadding=False)
         assert(len(blob)==sum(fieldLengths)*len(self.entries))
         return header+data,""
 

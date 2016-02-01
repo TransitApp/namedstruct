@@ -261,10 +261,25 @@ def generateHeader(structs,constantPools=None,namespace=None,define=None,headTex
     return result
 
 
+# pad will pad the given dat string value to 4-byte sizes -- except if it it's already 4-byte aligned, it will add
+# an extra 4-byte value if padExtra is True. This is necessary because of how the readBits function in C++
+# will interact with blob or bitfield-array data at the end of files. Padding can be disabled if the last
+# element in the resulting structure is known to not be some bit-data value.
+def pad(data, padExtra=True, paddingAlignment=4):
+    numPaddingBytes = paddingAlignment - (len(data) % paddingAlignment)
+    if not padExtra and numPaddingBytes == paddingAlignment:
+        numPaddingBytes = 0
+    data += '\0'*numPaddingBytes
+    return data
+
+
 # packs a struct into a string, storing all contained values inside it
-def pack(struct):
+# addPadding will call 'pad' on the result with the given arguments
+def pack(struct, addPadding=True, padExtra=True, paddingAlignment=4):
     data, offsetedData = struct.pack(None)
     assert(len(offsetedData) == 0)
+    if addPadding:
+        data = pad(data, padExtra=padExtra, paddingAlignment=paddingAlignment)
     return data
 
 
