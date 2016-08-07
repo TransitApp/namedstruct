@@ -76,7 +76,19 @@ class Type(object):
     # the merge is to resolve unknown members
     def merge(self,other):
         raise Exception("unimplemented for "+repr(self))
-
+    def dotGraph(self, parent=None):
+        result = ""
+        if parent is None:
+            result += "graph {\n"
+        else:
+            result += "%s -- %s;\n" % (parent.getName(), self.getName())
+        for childType in self.getContainedTypes():
+            result += childType.dotGraph(self)
+        if parent is None:
+            result += "}"
+        return result
+            
+        
 
 class PrimitiveType(Type):
     def getAlignment(self): # by default the primtive type width=alignment
