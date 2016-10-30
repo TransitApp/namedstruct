@@ -109,7 +109,9 @@ class BitField(Value):
         self.type = types.BitFieldType(name,bitWidth)
         self.values = []
     def add(self,name,value,bitWidth=1):
-        assert(value >= 0 and value < 2**bitWidth)
+        if not (value >= 0 and value < 2**bitWidth):
+            raise Exception("bitfield %s cannot store (%s, %d, bitWidth=%d)"
+                            % (self.type.name, name, value, bitWidth))
         self.type.add(name,bitWidth)
         self.values.append(value)
         return self
@@ -120,7 +122,7 @@ class BitField(Value):
     def get(self,fieldName): # returns the value of the field name
         return self.values[self.getType().fields[fieldName]]
     def pretty(self):
-        result = "bitField{bitWidth}{{".format(bitWidth=self.type.bitWidth)
+        result = "bitField{bitWidth}({name}){{".format(bitWidth=self.type.bitWidth, name=self.type.name)
         nameLen = max(len(name) for name in self.type.fieldNames) if len(self.values) > 0 else 0
         for i,memberValue in enumerate(self.values):
             bitWidth = self.type.fieldWidths[i]
@@ -137,6 +139,15 @@ class BitField(Value):
             value = value | (v << shift)
             shift = shift + self.type.fieldWidths[i]
         return Int(value,True,self.type.bitWidth).pack(dataOffset)
+    def __repr__(self):
+        return (
+            self.pretty()
+            .replace("\n"+stringhelper.indent, ",")
+            .replace(" ", "")
+            .replace("\n", "")
+            .replace("{,", "{")
+            .replace(",", ", ")
+        )   
 
 
 # null value
