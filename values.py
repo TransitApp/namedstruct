@@ -132,13 +132,17 @@ class BitField(Value):
         result = result.replace("\n","\n"+stringhelper.indent)
         result = result +"\n}"
         return result
-    def pack(self,dataOffset=None):
+    # packs this bietfield into an integer
+    def packToInt(self):
         value = 0
         shift = 0
         for i,v in enumerate(self.values):
             value = value | (v << shift)
             shift = shift + self.type.fieldWidths[i]
-        return Int(value,True,self.type.bitWidth).pack(dataOffset)
+        return value
+    def pack(self,dataOffset=None):
+        intPacked = self.packToInt()
+        return Int(intValue,True,self.type.bitWidth).pack(dataOffset)
     def __repr__(self):
         return (
             self.pretty()
