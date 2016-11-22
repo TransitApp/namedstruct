@@ -1,6 +1,6 @@
 import numbers, struct
 import stringhelper, constants
-
+import values
 
 # given two types, merges them, but if one of them is NullType, returns the other type
 def mergeTypes(typeA,typeB):
@@ -103,6 +103,9 @@ class PrimitiveType(Type):
         return True
     def assertValueHasType(self,aValue):
         self.pack(aValue)
+    # turns a python value into a namedstruct.Value of this primitive type
+    def makeValue(self, aValue):
+        raise Exception("unimplemented for "+repr(self))
 
 
 class IntType(PrimitiveType):
@@ -130,6 +133,9 @@ class IntType(PrimitiveType):
     def getFormatChar(self):
         f = IntType.formats[self.bitWidth]
         return f.upper() if self.unsigned else f.lower()
+    def makeValue(self, aValue):
+        return values.Int(aValue, self.unsigned, self.bitWidth)
+        
 INT8   = IntType(False,8)
 INT16  = IntType(False,16)
 INT32  = IntType(False,32)
@@ -153,6 +159,8 @@ class CharType(IntType):
         if not isinstance(aValue, basestring) or len(aValue) != 1:
             raise Exception(str(aValue)+" is not a char")
         self.pack(aValue)
+    def makeValue(self, aChar):
+        return values.Char(aChar)
 CHAR = CharType()
 
 
@@ -245,7 +253,7 @@ class NullType(Type):
 
 # represents references - they are stored as integer byte offsets to another object, so contain that target type
 # the target type may be None, if it is unknown.
-# A reference type to None may be merged with any othe reference type, if the refere bit width is the same.
+# A reference type to None may be merged with any other reference type, if the reference bit width is the same.
 # if the reference bit width is 8, will use unsigned references, otherwise the references are signed.
 class ReferenceType(Type):
     formats = {8:True,16:False,32:False} # bit width -> isUnsigned?
@@ -407,6 +415,71 @@ class ReferenceArrayType(ArrayType):
         return result
 
 
+class EnumType(Type):
+    def __init__(self, name, enumType, mapping):
+        assert isinstance(enumType, PrimitiveType)        
+        self.name = name
+        self.enumType = enumType
+        self.mapping = []
+        self.values = {}
+        # turn dictionaries into list of pairs
+        try:
+            mapping = mapping.items()
+        except AttributeError:
+            pass
+        for name, value in mapping:
+            namedstructValue = enumType.makeValue(value)
+            self.mapping.append((name, namedstructValue))
+            self.values[name] = namedstructValue
+            setattr(self, name, values.EnumValue(self, name))
+    def getEnumType(self):
+        return self.enumType
+    def getUniqueName(self):
+        return self.getName()
+    def getContainedTypes(self):
+        return [ self.getEnumType() ]
+    def getDeclaration(self,indent=stringhelper.indent):
+        header  = "enum class {name} : {type} {{".format(name=self.getName(), type=self.getEnumType())
+        members = [
+            "{indent}{name} = {value}".format(indent=indent, name=name, value=value.getLiteral())
+            for name, value in self.mapping
+        ]
+        return header + "\n" + ",\n".join(members) + "\n}"
+    def getForwardDeclaration(self):
+        return "enum class {name} : {type};".format(name=self.getName(), type=self.getEnumType())
+    def getAccessorFunction(self,memberName,indent=stringhelper.indent):
+        functionName = "get" + stringhelper.capitalizeFirst(memberName)
+        functionCode = (
+            "/** Returns {memberName} as a {type} enum */\n" +
+            "inline {type} {functionName}() const {{\n" +
+            "{indent}return static_cast<{type}>(this->{memberName}{suffix});\n" +
+            "}}").format(indent=stringhelper.indent, functionName=functionName, suffix=self.getNameSuffix(),
+                         memberName=memberName, type=self.getName())
+        return functionCode
+    def getDeclarationNameSuffix(self): # for example [] for arrays, [24] for fixed arrays
+        return ""
+    def getNameSuffix(self): # a suffix for the name - e.g. "ByteOffset" for references
+        return "EnumValue"
+    def getAlignment(self):
+        return self.getEnumType().getAlignment()
+    def getWidth(self):
+        return self.getEnumType().getAlignment()
+    def hasEqualMethod(self):
+        return True
+    def assertValueHasType(self,aValue):
+        raise Exception("cannot verify whether "+repr(aValue)+" matches type "+repr(self))
+    def __repr__(self):
+        return self.getUniqueName()
+    def isMutable(self):
+        return False
+    def isImmediate(self):
+        return True
+    # merge the other type with this -
+    # will throw an error if the types are inconsistent (starting with their name)
+    # the merge is to resolve unknown members
+    def merge(self,other):
+        _typeEqualAssert(self,other,"name","enumType","mapping")
+
 # this is the only type that is mutable
 class StructType(Type, constants.AddConstantFunctions):
     def __init__(self,name):
@@ -476,7 +549,7 @@ class StructType(Type, constants.AddConstantFunctions):
     
     # this will finalize the definition of this struct. The Struct may never grow in size
     # from this point on, otherwise it will become incompatible. Reserved elements may be added
-    # to reserve space for future additions. After finalizing, the the struct may have a fixed
+    # to reserve space for future additions. After finalizing, the struct may have a fixed
     # width, depending on whether the last member is fixed. returns the number of padding bytes
     def finalize(self,byteAlignment=4):
         if self.getCurrentWidth() == 0:

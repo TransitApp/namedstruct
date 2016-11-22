@@ -44,8 +44,6 @@ def getArrayValue(arrayValues,fixedSize=None):
 class Value(object):
     def __init__(self,type):
         self.type = type;
-    def getAlignement():
-        raise Exception()
     def getType(self):
         return self.type;
     # returns a tuple of strings, the immediate data, and the offseted data, which is assumed to start at dataOffset
@@ -354,11 +352,25 @@ class ReferenceArray(Array):
             return immediateData, offsetData
 
 
-# reserved is just a set of bytes reserved for futrue use
+# reserved is just a set of bytes reserved for future use
 class ReservedValue(SimpleArray):
-    pass
+    pass # TODO?
 
 
+class EnumValue(PrimitiveValue):
+    def __init__(self,type,name):
+        assert isinstance(type, types.EnumType)
+        assert name in type.values
+        self.type = type
+        self.name = name
+    def getPythonValue(self): # will return a python value, basically what was used to create this
+        return self.type.values[self.name].getPythonValue()
+    def pretty(self):
+        return self.type.getName()+"."+self.name
+    def getLiteral(self):
+        raise self.type.values[self.name].getLiteral()
+    def getImmediateDataSize(self):
+        return self.type.getEnumType().getWidth()
 
 # struct value
 # structs don't have fixed width unless they are closed/finished
