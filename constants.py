@@ -1,5 +1,6 @@
 import collections
 import values
+import re
 
 # an object that has the add constant functions - they all get dispatched to "addConstant"
 class AddConstantFunctions(object):
@@ -20,7 +21,7 @@ class ConstantPool(AddConstantFunctions):
     # returns the value associated with the constant
     def get(self,name):
         return self.constants[name]
-
+    
     def getConstantDeclarations(self):
         result = ""
         typeWidth = max([len(v.getType().getName()) for v in self.constants.values()]+[0])
@@ -36,3 +37,15 @@ class ConstantPool(AddConstantFunctions):
         return result[:-1]
     def getNumConstants(self):
         return len(self.constants)
+
+
+class EnumConstant(object):
+    def __init__(self, name, keyToValue):
+        pass
+
+
+# converts a camelCase name to CONSTANT_CASE
+# if the string is already constant case, generally leaves it untouched
+def toConstantName(name):
+    s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).upper()
