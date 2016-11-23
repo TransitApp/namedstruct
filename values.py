@@ -140,7 +140,7 @@ class BitField(Value):
         return value
     def pack(self,dataOffset=None):
         intPacked = self.packToInt()
-        return Int(intValue,True,self.type.bitWidth).pack(dataOffset)
+        return Int(intPacked,True,self.type.bitWidth).pack(dataOffset)
     def __repr__(self):
         return (
             self.pretty()
@@ -357,12 +357,14 @@ class ReservedValue(SimpleArray):
     pass # TODO?
 
 
-class EnumValue(PrimitiveValue):
+class EnumValue(Value):
     def __init__(self,type,name):
         assert isinstance(type, types.EnumType)
         assert name in type.values
         self.type = type
         self.name = name
+    def hasFixedWidth(self):
+        return True
     def getPythonValue(self): # will return a python value, basically what was used to create this
         return self.type.values[self.name].getPythonValue()
     def pretty(self):
@@ -371,7 +373,10 @@ class EnumValue(PrimitiveValue):
         raise self.type.values[self.name].getLiteral()
     def getImmediateDataSize(self):
         return self.type.getEnumType().getWidth()
+    def pack(self,dataOffset=None):
+        return self.type.values[self.name].pack(dataOffset=dataOffset)
 
+    
 # struct value
 # structs don't have fixed width unless they are closed/finished
 class Struct(Value, constants.AddConstantFunctions):

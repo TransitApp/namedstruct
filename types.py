@@ -346,7 +346,7 @@ class SimpleArrayType(ArrayType):
         else:
             raise Exception("non-fixed array has no width")
     def hasEqualMethod(self):
-        return self.fixedSize != None
+        return False # TODO - allow overriding the equality test expression, thus allowing equal where self.fixedSize != None
     def merge(self,other):
         _typeEqualAssert(self,other,"fixedSize","alignment")
         t1 = self.elementType
@@ -415,16 +415,24 @@ class ReferenceArrayType(ArrayType):
         return result
 
 
-class EnumType(Type):
+# Create an integer enum with the given name and mapping. Just calls the constructor of EnumType
+def IntEnumType(name, mapping, bitWidth=32, unsigned=False):
+    return EnumType(name, IntType(unsigned=unsigned, bitWidth=bitWidth), mapping)
+
+class EnumType(Type):    
+    # Create an enum with the given type name, underlying type and name->value mapping.
+    # The underlying type should be a primitive type (integer, char)
+    # the mapping should either be a dictionary (names will be sorted), or a list of name->value pairs
     def __init__(self, name, enumType, mapping):
-        assert isinstance(enumType, PrimitiveType)        
-        self.name = name
+        assert isinstance(enumType, PrimitiveType)
         self.enumType = enumType
+        self.name = enumType.name
         self.mapping = []
         self.values = {}
+        self.uniqueName = name
         # turn dictionaries into list of pairs
         try:
-            mapping = mapping.items()
+            mapping = sorted(mapping.items())
         except AttributeError:
             pass
         for name, value in mapping:
@@ -435,18 +443,18 @@ class EnumType(Type):
     def getEnumType(self):
         return self.enumType
     def getUniqueName(self):
-        return self.getName()
+        return self.uniqueName
     def getContainedTypes(self):
         return [ self.getEnumType() ]
     def getDeclaration(self,indent=stringhelper.indent):
-        header  = "enum class {name} : {type} {{".format(name=self.getName(), type=self.getEnumType())
+        header  = "enum class {uniqueName} : {valueType} {{".format(uniqueName=self.uniqueName, valueType=self.name)
         members = [
             "{indent}{name} = {value}".format(indent=indent, name=name, value=value.getLiteral())
             for name, value in self.mapping
         ]
-        return header + "\n" + ",\n".join(members) + "\n}"
+        return header + "\n" + ",\n".join(members) + "\n};"
     def getForwardDeclaration(self):
-        return "enum class {name} : {type};".format(name=self.getName(), type=self.getEnumType())
+        return "enum class {name} : {type};".format(name=self.uniqueName, type=self.name)
     def getAccessorFunction(self,memberName,indent=stringhelper.indent):
         functionName = "get" + stringhelper.capitalizeFirst(memberName)
         functionCode = (
@@ -454,7 +462,7 @@ class EnumType(Type):
             "inline {type} {functionName}() const {{\n" +
             "{indent}return static_cast<{type}>(this->{memberName}{suffix});\n" +
             "}}").format(indent=stringhelper.indent, functionName=functionName, suffix=self.getNameSuffix(),
-                         memberName=memberName, type=self.getName())
+                         memberName=memberName, type=self.uniqueName)
         return functionCode
     def getDeclarationNameSuffix(self): # for example [] for arrays, [24] for fixed arrays
         return ""
@@ -479,7 +487,7 @@ class EnumType(Type):
     # the merge is to resolve unknown members
     def merge(self,other):
         _typeEqualAssert(self,other,"name","enumType","mapping")
-
+        
 # this is the only type that is mutable
 class StructType(Type, constants.AddConstantFunctions):
     def __init__(self,name):
@@ -541,7 +549,7 @@ class StructType(Type, constants.AddConstantFunctions):
         return self.getCurrentWidth()
 
     def hasEqualMethod(self):
-        return all(t.hasEqualMethod() for t in self.types)
+        return len(self.members) > 0 and all(t.hasEqualMethod() for t in self.types)
     
     def getCurrentWidth(self):
         if len(self.offsets) == 0: return 0
@@ -645,7 +653,10 @@ class StructType(Type, constants.AddConstantFunctions):
            prefix = "(    " if len(self.names) > 1 else "",
            postfix = ")" if len(self.names) > 1 else "",
            comparisonExpression = (("\n{i}{i}        and ".format(i=indent))
-                                   .join("{name} == other.{name}".format(name = n) for n in self.names)))
+                                   .join("{name}{suffix} == other.{name}{suffix}"
+                                         .format(name = n,
+                                                 suffix = self.types[i].getNameSuffix())
+                                         for i,n in enumerate(self.names))))
         # finish
         result = result + "} " + self.getName() + ";"
         return result
