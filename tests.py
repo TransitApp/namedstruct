@@ -301,8 +301,8 @@ def generateTests(quiet=False):
       .add("nation", NationEnum.OTHER))
 
   # trivial enums
-  YesEnum = namedstruct.types.EnumType("YesEnum", namedstruct.types.UINT16, {"YES": 0})
-  NoEnum = namedstruct.types.IntEnumType("YesEnum", {"NO": -1})
+  YesEnum = namedstruct.types.EnumType("YesEnum", namedstruct.types.UINT16, {"yes": 0})
+  NoEnum = namedstruct.types.IntEnumType("NoEnum", {"no": -1})
   
   add(Struct("testStruct43")
       .add("bitfield",
@@ -321,11 +321,11 @@ def generateTests(quiet=False):
   
   add(Struct("testStruct45")
       .add("bitfield",
-           BitField("BitField44", 32)
+           BitField("BitField45", 32)
            .addEnum("gender", GenderEnum.OTHER)
            .addEnum("party", PartyEnum.GREEN)
-           .addEnum("yes", YesEnum.YES)
-           .addEnum("no", NoEnum.NO)
+           .addEnum("yes", YesEnum.yes)
+           .addEnum("no", NoEnum.no)
            .addSigned("signedEmpty", 0, 0)
            .add("other", 1))
       )

@@ -177,6 +177,8 @@ class BitFieldType(Type):
         self.fieldArray = []
         #self.fieldNames = []
         self.bitWidth = totalBitWidth
+    def getContainedTypes(self):
+        return [field.type for field in self.fieldArray if field.type not in {'i', 'u'}]
     def addField(self,field):
         if field.bitWidth + self.getNumUsedBits() > self.bitWidth:
             raise Exception("not enough bits to add field "+field.name+" to bit field "+self.name
@@ -236,7 +238,7 @@ class BitFieldType(Type):
                 fieldName = field.name
                 fieldWidth = field.bitWidth
                 mask = ("0x%0"+str(maskChars)+"x") % ((1 << fieldWidth) - 1)
-                s = "s" if fieldWidth > 1 else " "
+                s = "s" if fieldWidth != 1 else " "
                 fieldType = getTypeName(field)
                 space = " "*(fieldNameWidth - len(fieldName) - len(fieldType))
                 useZigZag = (field.type == 'i') if field.type in {'i', 'u'} else field.type.hasNegativeValues()
