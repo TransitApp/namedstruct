@@ -299,6 +299,36 @@ def generateTests(quiet=False):
       .add("gender", GenderEnum.OTHER)
       .add("party",  PartyEnum.GREEN)
       .add("nation", NationEnum.OTHER))
+
+  # trivial enums
+  YesEnum = namedstruct.types.EnumType("YesEnum", namedstruct.types.UINT16, {"YES": 0})
+  NoEnum = namedstruct.types.IntEnumType("YesEnum", {"NO": -1})
+  
+  add(Struct("testStruct43")
+      .add("bitfield",
+           BitField("bitField43",16)
+           .addSigned("s1",1,2)
+           .addSigned("s2",-2,2)
+           .addSigned("s3",-127,8)
+           .add("empty",0, 0))
+      )
+  
+  add(Struct("testStruct44")
+      .add("bitfield",
+           BitField("BitField44", 32)
+           .addSigned("field", -2147483648, 32))
+      )
+  
+  add(Struct("testStruct45")
+      .add("bitfield",
+           BitField("BitField44", 32)
+           .addEnum("gender", GenderEnum.OTHER)
+           .addEnum("party", PartyEnum.GREEN)
+           .addEnum("yes", YesEnum.YES)
+           .addEnum("no", NoEnum.NO)
+           .addSigned("signedEmpty", 0, 0)
+           .add("other", 1))
+      )
   
   pool = generateConstantPool()
   

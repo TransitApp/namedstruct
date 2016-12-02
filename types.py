@@ -1,6 +1,8 @@
 import numbers, struct
 import stringhelper, constants
 import values
+import collections
+import bithelper
 
 # given two types, merges them, but if one of them is NullType, returns the other type
 def mergeTypes(typeA,typeB):
@@ -166,28 +168,45 @@ CHAR = CharType()
 
 # bit fields
 class BitFieldType(Type):
+    Field = collections.namedtuple("FieldType", ["name", "type", "bitWidth"])
     def __init__(self,name,totalBitWidth=32):
         self.dataType = IntType(True,totalBitWidth)
         self.name = name
         self.fields = {}  # field name -> member index
-        self.fieldWidths = []
-        self.fieldNames = []
+        #self.fieldWidths = []
+        self.fieldArray = []
+        #self.fieldNames = []
         self.bitWidth = totalBitWidth
-    # adds a field to the bit field
-    def add(self,name,bitWidth=1):
-        if bitWidth + sum(self.fieldWidths) > self.bitWidth:
-            raise Exception("not enough bits to add field "+name+" to bit field "+self.name
-                            +" (%d + %d > %d)" % (bitWidth,sum(self.fieldWidths),self.bitWidth))
-        if name in self.fields:
-            raise Exception("cannot use existing field name "+name+" as field name for bit field "+self.name)
-        assert(bitWidth > 0)
-        self.fieldWidths.append(bitWidth)
-        self.fieldNames.append(name)
-        self.fields[name] = len(self.fields)
+    def addField(self,field):
+        if field.bitWidth + self.getNumUsedBits() > self.bitWidth:
+            raise Exception("not enough bits to add field "+field.name+" to bit field "+self.name
+                            +" (%d + %d > %d)" % (field.bitWidth,self.getNumUsedBits(),self.bitWidth))
+        if field.name in self.fields:
+            raise Exception("cannot use existing field name "+field.name+" as field name for bit field "+self.name)
+        self.fieldArray.append(field)
+        self.fields[field.name] = len(self.fields)
+    # adds an int field to the bit field
+    def add(self,name,bitWidth=1,signed=False):
+        self.addField(BitFieldType.Field(name, "i" if signed else "u", bitWidth))
+    def addSigned(self,name,bitWidth):
+        self.addField(BitFieldType.Field(name, "i", bitWidth))
+    def addEnum(self,name,enumType):
+        assert isinstance(enumType, EnumType)
+        assert isinstance(enumType.enumType, IntType)
+        self.addField(BitFieldType.Field(name, enumType, BitFieldType.getRequiredBitsForEnum(enumType)))
+    @staticmethod
+    def getRequiredBitsForEnum(enumType):
+        values = enumType.getPythonValues()
+        if not enumType.hasNegativeValues():
+            numBits = bithelper.requiredBits(max(values))
+        else:
+            numBits = bithelper.requiredBits(max(bithelper.zigZagEncode(max(values)),
+                                                 bithelper.zigZagEncode(min(values))))
+        return numBits
     def getUniqueName(self):
         return (self.name + "("
-                +(','.join(str(self.fieldWidths[i])
-                           for i,name in enumerate(self.fieldNames)))
+                +(','.join(str(field.bitWidth)
+                           for field in self.fieldArray))
                 +")%d" % self.bitWidth)
     def getAlignment(self):
         return self.dataType.getAlignment()
@@ -195,6 +214,8 @@ class BitFieldType(Type):
         return True;
     def getWidth(self):
         return self.dataType.getWidth()
+    def getNumUsedBits(self):
+        return sum(f.bitWidth for f in self.fieldArray)
     def hasEqualMethod(self):
         return True
     def getForwardDeclaration(self):
@@ -205,22 +226,32 @@ class BitFieldType(Type):
         result = result + indent + self.dataType.getName() + " bits;\n"
         # add accessor functions
         shift = 0
-        if len(self.fieldNames) > 0:
-            fieldNameWidth = max(len(name) for name in  self.fieldNames)
-            maskChars = (max(self.fieldWidths)+3)/4
-            for i,fieldWidth in enumerate(self.fieldWidths):
-                fieldName = self.fieldNames[i]
+        def getTypeName(field):
+            return "int" if field.type in {"i", "u"} else field.type.getUniqueName()
+        
+        if len(self.fieldArray) > 0:
+            fieldNameWidth = max(len(field.name) + len(getTypeName(field)) for field in self.fieldArray)
+            maskChars = (max(field.bitWidth for field in self.fieldArray)+3)/4
+            for field in self.fieldArray:
+                fieldName = field.name
+                fieldWidth = field.bitWidth
                 mask = ("0x%0"+str(maskChars)+"x") % ((1 << fieldWidth) - 1)
                 s = "s" if fieldWidth > 1 else " "
-                space = " "*(fieldNameWidth - len(fieldName))
-                result = result + ("{indent}/** {bitWidth:2} bit{s} */ inline int get{fieldName}() {space}const {{"+
-                                   " return (bits >> {shift:2}) & {mask}; "+
+                fieldType = getTypeName(field)
+                space = " "*(fieldNameWidth - len(fieldName) - len(fieldType))
+                useZigZag = (field.type == 'i') if field.type in {'i', 'u'} else field.type.hasNegativeValues()
+                result = result + ("{indent}/** {bitWidth:2} bit{s} */ inline {fieldType} get{fieldName}() {space}const {{"+
+                                   "auto v = " + ("(bits >> {shift:2}) & {mask}" if fieldWidth > 0 else ' '*(16+maskChars)+"0") + "; "
+                                   " return static_cast<{fieldType}>("+
+                                   ("(v >> 1) ^ (-(v & 1))" if useZigZag else "v")+
+                                   "); "+
                                    "}}\n").format(
+                                       fieldType=fieldType,
                                        indent=stringhelper.indent, fieldName=stringhelper.capitalizeFirst(fieldName),
                                        shift=shift, mask=mask, s=s, space=space, bitWidth=fieldWidth)
                 shift = shift + fieldWidth
             
-            mask = "0x%X" % ((1 << sum(self.fieldWidths)) - 1)
+            mask = "0x%X" % ((1 << self.getNumUsedBits()) - 1)
             result += """{indent}
 {indent}inline bool operator==(const {name} other) const {{
 {indent}{indent}return (bits & {mask}) == (other.bits & {mask});
@@ -233,7 +264,7 @@ class BitFieldType(Type):
 """.format(name=self.getName(), indent=indent, mask=mask)
             return result;
     def merge(self,other):
-        _typeEqualAssert(self,other,"name","fieldNames","fieldWidths")
+        _typeEqualAssert(self,other,"name","fieldArray")
         return self
 
 
@@ -430,6 +461,7 @@ class EnumType(Type):
         self.mapping = []
         self.values = {}
         self.uniqueName = name
+        self._hasNegativeValues = False
         # turn dictionaries into list of pairs
         try:
             mapping = sorted(mapping.items())
@@ -437,6 +469,7 @@ class EnumType(Type):
             pass
         for name, value in mapping:
             namedstructValue = enumType.makeValue(value)
+            self._hasNegativeValues = self._hasNegativeValues or (value < 0)
             self.mapping.append((name, namedstructValue))
             self.values[name] = namedstructValue
             setattr(self, name, values.EnumValue(self, name))
@@ -487,8 +520,14 @@ class EnumType(Type):
     # the merge is to resolve unknown members
     def merge(self,other):
         _typeEqualAssert(self,other,"name","enumType","mapping")
-        
-# this is the only type that is mutable
+        return self
+    # returns the set of values used by theis enum
+    def getPythonValues(self):
+        return set(v.getPythonValue() for v in self.values.values())
+    def hasNegativeValues(self):
+        return self._hasNegativeValues
+
+    # this is the only type that is mutable
 class StructType(Type, constants.AddConstantFunctions):
     def __init__(self,name):
         self.constantPool = constants.ConstantPool()
@@ -612,7 +651,7 @@ class StructType(Type, constants.AddConstantFunctions):
             result = (result 
                       +indent
                       +self.constantPool.getConstantDeclarations().replace("\n","\n"+indent) + "\n")
-            
+        
         # add members
         typeWidth = max([0]+[len(memberType.getName()) for memberType in self.types])
         for i,memberName in enumerate(self.names):

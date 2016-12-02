@@ -44,3 +44,45 @@ def packBitsToChars(bits):
     if (numBits > 0):
         result.append(c)
     return struct.pack("<"+str(len(result))+"B",*result)
+
+def zigZagEncode (v):
+    if v < 0:
+        return ~v*2 + 1
+    else:
+        return 2*v
+
+def zigZagDecode (v):
+    if v & 1:
+        return ~(v >> 1)
+    else:
+        return (v >> 1)
+
+
+
+
+
+
+import unittest
+class TestBitHelper(unittest.TestCase):
+    def testZigZag(self):
+        values = [
+            ( 0, 0),
+            (-1, 1),
+            ( 1, 2),
+            (-2, 3),
+            (2147483647,4294967294),
+            (-2147483648,4294967295),
+        ]
+        for s,d in values:
+            self.assertEqual(zigZagEncode(s), d)
+            self.assertEqual(s, zigZagDecode(d))
+    
+    def testZigZag2(self):
+        for shift in range(40):
+            for v in [1 << shift, (1 << shift) - 1, - (1 << shift), -((1 << shift) - 1)]:
+                self.assertEqual(zigZagDecode(zigZagEncode(v)), v)
+
+
+def runTests():
+    suite = unittest.TestLoader().loadTestsFromTestCase(TestBitHelper)
+    unittest.TextTestRunner(verbosity=2).run(suite)

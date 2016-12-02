@@ -108,10 +108,21 @@ class BitField(Value):
         self.values = []
     def add(self,name,value,bitWidth=1):
         if not (value >= 0 and value < 2**bitWidth):
-            raise Exception("bitfield %s cannot store (%s, %d, bitWidth=%d)"
+            raise Exception("bitfield %s cannot store unsigned (%s, %d, bitWidth=%d)"
                             % (self.type.name, name, value, bitWidth))
         self.type.add(name,bitWidth)
         self.values.append(value)
+        return self
+    def addSigned(self,name,value,bitWidth):
+        if not (bithelper.zigZagEncode(value) < 2**bitWidth):
+            raise Exception("bitfield %s cannot store signed (%s, %d, bitWidth=%d)"
+                            % (self.type.name, name, value, bitWidth))
+        self.type.addSigned(name,bitWidth)
+        self.values.append(value)
+        return self
+    def addEnum(self,name,enumValue):
+        self.type.addEnum(name, enumValue.getType())
+        self.values.append(enumValue)
         return self
     def hasFixedWidth(self):
         return True
@@ -121,12 +132,11 @@ class BitField(Value):
         return self.values[self.getType().fields[fieldName]]
     def pretty(self):
         result = "bitField{bitWidth}({name}){{".format(bitWidth=self.type.bitWidth, name=self.type.name)
-        nameLen = max(len(name) for name in self.type.fieldNames) if len(self.values) > 0 else 0
+        nameLen = max(len(field.name) for field in self.type.fieldArray) if len(self.values) > 0 else 0
         for i,memberValue in enumerate(self.values):
-            bitWidth = self.type.fieldWidths[i]
-            name = self.type.fieldNames[i]
-            result = result + (("\n{name:"+str(nameLen)+"}:{bitWidth:2} = {value}")
-                               .format(name=name,bitWidth=bitWidth,value=memberValue))
+            field = self.type.fieldArray[i]
+            result = result + (("\n{name:"+str(nameLen)+"}:{type}{bitWidth:<2} = {value}")
+                               .format(name=field.name,bitWidth=field.bitWidth,value=memberValue,type=field.type))
         result = result.replace("\n","\n"+stringhelper.indent)
         result = result +"\n}"
         return result
@@ -135,8 +145,17 @@ class BitField(Value):
         value = 0
         shift = 0
         for i,v in enumerate(self.values):
-            value = value | (v << shift)
-            shift = shift + self.type.fieldWidths[i]
+            field = self.type.fieldArray[i]
+            if field.type == 'u':
+                storeValue = v
+            elif field.type == 'i':
+                storeValue = bithelper.zigZagEncode(v)
+            else:
+                storeValue = v.getPythonValue()
+                if field.type.hasNegativeValues():
+                    storeValue = bithelper.zigZagEncode(storeValue)
+            value = value | (storeValue << shift)
+            shift = shift + field.bitWidth
         return value
     def pack(self,dataOffset=None):
         intPacked = self.packToInt()
@@ -375,6 +394,8 @@ class EnumValue(Value):
         return self.type.getEnumType().getWidth()
     def pack(self,dataOffset=None):
         return self.type.values[self.name].pack(dataOffset=dataOffset)
+    def __repr__(self):
+        return "%s.%s" % (self.type, self.name)
 
     
 # struct value
