@@ -192,7 +192,7 @@ class BitFieldType(Type):
         self.addField(BitFieldType.Field(name, "i" if signed else "u", bitWidth))
     def addSigned(self,name,bitWidth):
         self.addField(BitFieldType.Field(name, "i", bitWidth))
-    def addEnum(self,name,enumType):
+    def addEnum(self,name,enumType): # TODO - signed, numBits?
         assert isinstance(enumType, EnumType)
         assert isinstance(enumType.enumType, IntType)
         self.addField(BitFieldType.Field(name, enumType, BitFieldType.getRequiredBitsForEnum(enumType)))
@@ -243,7 +243,7 @@ class BitFieldType(Type):
                 space = " "*(fieldNameWidth - len(fieldName) - len(fieldType))
                 useZigZag = (field.type == 'i') if field.type in {'i', 'u'} else field.type.hasNegativeValues()
                 result = result + ("{indent}/** {bitWidth:2} bit{s} */ inline {fieldType} get{fieldName}() {space}const {{"+
-                                   "auto v = " + ("(bits >> {shift:2}) & {mask}" if fieldWidth > 0 else ' '*(16+maskChars)+"0") + "; "
+                                   " auto v = " + ("(bits >> {shift:2}) & {mask}" if fieldWidth > 0 else ' '*(16+maskChars)+"0") + "; "
                                    " return static_cast<{fieldType}>("+
                                    ("(v >> 1) ^ (-(v & 1))" if useZigZag else "v")+
                                    "); "+

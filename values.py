@@ -120,7 +120,7 @@ class BitField(Value):
         self.type.addSigned(name,bitWidth)
         self.values.append(value)
         return self
-    def addEnum(self,name,enumValue):
+    def addEnum(self,name,enumValue): # TODO: ,numBits=None,signed=None):
         self.type.addEnum(name, enumValue.getType())
         self.values.append(enumValue)
         return self
