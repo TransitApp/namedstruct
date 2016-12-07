@@ -460,8 +460,8 @@ class EnumType(Type):
         assert isinstance(enumType, PrimitiveType)
         self.enumType = enumType
         self.name = enumType.name
-        self.mapping = []
-        self.values = {}
+        self.mapping = collections.OrderedDict() # name -> namedstructValue that represents the value
+        self.values  = collections.OrderedDict() # name -> EnumValue
         self.uniqueName = name
         self._hasNegativeValues = False
         # turn dictionaries into list of pairs
@@ -472,9 +472,12 @@ class EnumType(Type):
         for name, value in mapping:
             namedstructValue = enumType.makeValue(value)
             self._hasNegativeValues = self._hasNegativeValues or (value < 0)
-            self.mapping.append((name, namedstructValue))
-            self.values[name] = namedstructValue
-            setattr(self, name, values.EnumValue(self, name))
+            self.mapping[name] = namedstructValue
+            enumValue = values.EnumValue(self, name) # the enum value constructor requres the self.mapping value
+            self.values[name] = enumValue
+            setattr(self, name, enumValue)
+    def __getitem__(self, key):
+        return self.values[key]
     def getEnumType(self):
         return self.enumType
     def getUniqueName(self):
@@ -485,7 +488,7 @@ class EnumType(Type):
         header  = "enum class {uniqueName} : {valueType} {{".format(uniqueName=self.uniqueName, valueType=self.name)
         members = [
             "{indent}{name} = {value}".format(indent=indent, name=name, value=value.getLiteral())
-            for name, value in self.mapping
+            for name, value in self.mapping.items()
         ]
         return header + "\n" + ",\n".join(members) + "\n};"
     def getForwardDeclaration(self):
@@ -525,7 +528,7 @@ class EnumType(Type):
         return self
     # returns the set of values used by theis enum
     def getPythonValues(self):
-        return set(v.getPythonValue() for v in self.values.values())
+        return set(v.getPythonValue() for v in self.mapping.values())
     def hasNegativeValues(self):
         return self._hasNegativeValues
 

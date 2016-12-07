@@ -379,13 +379,13 @@ class ReservedValue(SimpleArray):
 class EnumValue(Value):
     def __init__(self,type,name):
         assert isinstance(type, types.EnumType)
-        assert name in type.values
+        assert name in type.mapping
         self.type = type
         self.name = name
     def hasFixedWidth(self):
         return True
     def getPythonValue(self): # will return a python value, basically what was used to create this
-        return self.type.values[self.name].getPythonValue()
+        return self.type.mapping[self.name].getPythonValue()
     def pretty(self):
         return self.type.getName()+"."+self.name
     def getLiteral(self):
@@ -393,7 +393,7 @@ class EnumValue(Value):
     def getImmediateDataSize(self):
         return self.type.getEnumType().getWidth()
     def pack(self,dataOffset=None):
-        return self.type.values[self.name].pack(dataOffset=dataOffset)
+        return self.type.mapping[self.name].pack(dataOffset=dataOffset)
     def __repr__(self):
         return "%s.%s" % (self.type, self.name)
 
