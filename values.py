@@ -135,8 +135,11 @@ class BitField(Value):
         nameLen = max(len(field.name) for field in self.type.fieldArray) if len(self.values) > 0 else 0
         for i,memberValue in enumerate(self.values):
             field = self.type.fieldArray[i]
-            result = result + (("\n{name:"+str(nameLen)+"}:{type}{bitWidth:<2} = {value}")
-                               .format(name=field.name,bitWidth=field.bitWidth,value=memberValue,type=field.type))
+            isEnum = field.type not in {'u', 'i'}
+            result = result + (("\n{name:"+str(nameLen)+"}:{type}{separator}{bitWidth:<2} = {value}")
+                               .format(name=field.name,bitWidth=field.bitWidth,type=field.type,
+                                       value=memberValue.name if isEnum else memberValue,
+                                       separator=':' if isEnum else ''))
         result = result.replace("\n","\n"+stringhelper.indent)
         result = result +"\n}"
         return result
