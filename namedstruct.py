@@ -193,7 +193,8 @@ def generateHeader(structs,constantPools=None,namespace=None,define=None,headTex
     # get all types
     structTypes = []
     for s in structs:
-        assert(isinstance(s, values.Struct))
+        if not (isinstance(s, (values.Struct, values.BitField))):
+            raise Exception("cannot generated header for value: %s" % s)
         structTypes.append(s.type)
     types = getAllTypes(structTypes)
     
