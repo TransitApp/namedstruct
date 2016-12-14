@@ -185,6 +185,7 @@ class BitFieldType(Type):
                             +" (%d + %d > %d)" % (field.bitWidth,self.getNumUsedBits(),self.bitWidth))
         if field.name in self.fields:
             raise Exception("cannot use existing field name "+field.name+" as field name for bit field "+self.name)
+        stringhelper.assertIsValidIdentifier(field.name)
         self.fieldArray.append(field)
         self.fields[field.name] = len(self.fields)
     # adds an int field to the bit field
@@ -470,6 +471,7 @@ class EnumType(Type):
         except AttributeError:
             pass
         for name, value in mapping:
+            stringhelper.assertIsValidIdentifier(name)
             namedstructValue = enumType.makeValue(value)
             self._hasNegativeValues = self._hasNegativeValues or (value < 0)
             self.mapping[name] = namedstructValue
