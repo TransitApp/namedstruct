@@ -329,6 +329,23 @@ def generateTests(quiet=False):
            .addSigned("signedEmpty", 0, 0)
            .add("other", 1))
       )
+
+  add(Struct("testStruct46")
+      .add("bitfield",
+           BitField("BitField46", 32)
+           .add("a", 0, 3)
+           .addSigned("b", 0, 4)
+           .add("c", 0, 4)
+           .add("d", 0, 4)
+           )
+      )
+
+  add(Struct("testStruct47")
+      .add("bitfield",
+           BitField("BitField47", 32)
+           .addSigned("number", 0, 32)
+           )
+      )
   
   pool = generateConstantPool()
   

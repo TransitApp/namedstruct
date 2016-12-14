@@ -231,7 +231,8 @@ class BitFieldType(Type):
         shift = 0
         def getTypeName(field):
             return "int" if field.type in {"i", "u"} else field.type.getUniqueName()
-        
+
+        setters = ""
         if len(self.fieldArray) > 0:
             fieldNameWidth = max(len(field.name) + len(getTypeName(field)) for field in self.fieldArray)
             maskChars = (max(field.bitWidth for field in self.fieldArray)+3)/4
@@ -243,27 +244,31 @@ class BitFieldType(Type):
                 fieldType = getTypeName(field)
                 space = " "*(fieldNameWidth - len(fieldName) - len(fieldType))
                 useZigZag = (field.type == 'i') if field.type in {'i', 'u'} else field.type.hasNegativeValues()
+                
+                formatDict = dict(fieldType=fieldType,
+                                  indent=stringhelper.indent, fieldName=stringhelper.capitalizeFirst(fieldName),
+                                  shift=shift, mask=mask, s=s, space=space, bitWidth=fieldWidth,
+                                  fieldNameWidthSpaces=' '*fieldNameWidth)
                 result = result + ("{indent}/** {bitWidth:2} bit{s} */ inline {fieldType} get{fieldName}() {space}const {{"+
                                    " auto v = " + ("(bits >> {shift:2}) & {mask}" if fieldWidth > 0 else ' '*(16+maskChars)+"0") + "; "
                                    " return static_cast<{fieldType}>("+
                                    ("(v >> 1) ^ (-(v & 1))" if useZigZag else "v")+
                                    "); "+
-                                   "}}\n"
-                                   "{indent}               inline void set{fieldName}({fieldType} v) {space}{{"
-                                   " {storageType} intValue = static_cast<{storageType}>(v);\n"
-                                   "{indent}{fieldNameWidthSpaces}                                    "
-                                   " bits = (bits & ~({mask} << {shift:2})) | ((("+
-                                   ("(intValue << 1)^(intValue>>{bitfieldBits})" if useZigZag else "intValue")+
-                                   ") & {mask}) << {shift:2});"
-                                   "}}\n"
-                                   ).format(
-                                       fieldType=fieldType,
-                                       indent=stringhelper.indent, fieldName=stringhelper.capitalizeFirst(fieldName),
-                                       shift=shift, mask=mask, s=s, space=space, bitWidth=fieldWidth,
-                                       storageType=self.dataType.getName(), bitFieldBits=self.dataType.bitWidth,
-                                       fieldNameWidthSpaces=' '*fieldNameWidth)
+                                   "}}\n").format(**formatDict)
+                storageType = self.dataType.getName()
+                intType = (IntType(unsigned=False, bitWidth=self.dataType.bitWidth).getName() + " ") if useZigZag else storageType
+                setters = setters + ("{indent}\n"
+                                     "{indent}inline void set{fieldName}({fieldType} v) {{\n"
+                                     "{indent}{indent}{intType} intValue = static_cast<{intType}>(v);\n"
+                                     "{indent}{indent}{storageType} bitValue = "+
+                                     ("(intValue << 1)^(intValue>>{bitfieldBitsMinus1})" if useZigZag else "intValue")+";\n"
+                                     "{indent}{indent}bits = (bits & ~({mask} << {shift:2})) | ((bitValue & {mask}) << {shift:2});\n"
+                                     "{indent}}}\n").format(intType=intType,
+                                                            storageType=storageType,
+                                                            bitfieldBitsMinus1=self.dataType.bitWidth-1,
+                                                            **formatDict)
                 shift = shift + fieldWidth
-            
+            result += setters
             mask = "0x%X" % ((1 << self.getNumUsedBits()) - 1)
             result += """{indent}
 {indent}inline bool operator==(const {name} other) const {{
