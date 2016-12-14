@@ -177,26 +177,29 @@ import stringhelper, bithelper, values, types, constants
 # If the 'define' is set, will use use that for the IF/IFNDEFs, otherwise till use the name of the
 # first struct.
 # headText can be used to add license/author etc.
-# structs may be a single struct or a sequence of structs.
+# structs may be a value or a sequence of structs/bitfield values/enum type
 # constantPools may be a single constantPool or a sequence of constant Pools
-def generateHeader(structs,constantPools=None,namespace=None,define=None,headText="",indent=stringhelper.indent):
+def generateHeader(valuesOrEnumTypes, constantPools=None, namespace=None, define=None, headText="", indent=stringhelper.indent):
     # massage arguments
-    if isinstance(structs, values.Value): structs = [structs]
+    if isinstance(valuesOrEnumTypes, values.Value): valuesOrEnumTypes = [valuesOrEnumTypes]
     if constantPools == None: constantPools = []
     if isinstance(constantPools, constants.ConstantPool): constantPools = [constantPools]
-    if define == None: define = "__"+structs[0].getType().getName().upper()+"__"
+    if define == None: define = "__" + valuesOrEnumTypes[0].getType().getName().upper() + "__"
     namespaceString = ""
     if namespace!=None:
         stringhelper.assertIsValidIdentifier(namespace)
         namespaceString = "namespace %s {\n" % namespace
     
     # get all types
-    structTypes = []
-    for s in structs:
-        if not (isinstance(s, (values.Struct, values.BitField))):
+    allTypes = []
+    for s in valuesOrEnumTypes:
+        if isinstance(s, types.EnumType):
+            allTypes.append(s)
+        elif isinstance(s, (values.Struct, values.BitField, values.EnumValue)):
+            allTypes.append(s.type)
+        else:
             raise Exception("cannot generated header for value: %s" % s)
-        structTypes.append(s.type)
-    types = getAllTypes(structTypes)
+    allTypes = getAllTypes(allTypes) # recursively get contained types
     
     # start header
     result = headText+"""
@@ -228,7 +231,7 @@ def generateHeader(structs,constantPools=None,namespace=None,define=None,headTex
 
     # put forward declaration of all types - todo put only necessary ones...
     forwardDeclarations = ""
-    for type in types.values():
+    for type in allTypes.values():
         forwardDeclaration = type.getForwardDeclaration()
         if forwardDeclaration == None: continue
         forwardDeclarations = forwardDeclarations + currentIndent + forwardDeclaration + "\n"
@@ -241,7 +244,7 @@ def generateHeader(structs,constantPools=None,namespace=None,define=None,headTex
 
     # put declaration of all types
     typeDeclarations = ""
-    for name,type in types.items():
+    for name,type in allTypes.items():
         declaration = type.getDeclaration(indent)
         if declaration == None: continue
         typeDeclarations = (typeDeclarations
