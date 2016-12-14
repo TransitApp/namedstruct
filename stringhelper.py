@@ -32,7 +32,12 @@ def assertIsValidIdentifier(name):
         raise Exception(repr(name)+" not a valid identifier")
     if name.endswith("ByteOffset"): 
         raise Exception(repr(name)+" - an identifier may not end with ByteOffset, that suffix is reserved for internal use.")
-    if name in _cPlusPlusKeywords: raise Exception(repr(name)+" cannot be an identifier, it is a C/C++ keyword")
+    if isCppKeyword(name):
+        raise Exception(repr(name)+" cannot be an identifier, it is a C/C++ keyword")
+
+
+def isCppKeyword(name):
+    return name in _cPlusPlusKeywords
 
 _identifierMatchObject = re.compile('^[_a-zA-z][0-9_a-zA-Z]*')
 _cPlusPlusKeywords = frozenset(["alignas","alignof","and","and_eq","asm","auto","bitand","bitor",
