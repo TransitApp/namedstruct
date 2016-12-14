@@ -248,10 +248,20 @@ class BitFieldType(Type):
                                    " return static_cast<{fieldType}>("+
                                    ("(v >> 1) ^ (-(v & 1))" if useZigZag else "v")+
                                    "); "+
-                                   "}}\n").format(
+                                   "}}\n"
+                                   "{indent}               inline void set{fieldName}({fieldType} v) {space}{{"
+                                   " {storageType} intValue = static_cast<{storageType}>(v);\n"
+                                   "{indent}{fieldNameWidthSpaces}                                    "
+                                   " bits = (bits & ~({mask} << {shift:2})) | ((("+
+                                   ("(intValue << 1)^(intValue>>{bitfieldBits})" if useZigZag else "intValue")+
+                                   ") & {mask}) << {shift:2});"
+                                   "}}\n"
+                                   ).format(
                                        fieldType=fieldType,
                                        indent=stringhelper.indent, fieldName=stringhelper.capitalizeFirst(fieldName),
-                                       shift=shift, mask=mask, s=s, space=space, bitWidth=fieldWidth)
+                                       shift=shift, mask=mask, s=s, space=space, bitWidth=fieldWidth,
+                                       storageType=self.dataType.getName(), bitFieldBits=self.dataType.bitWidth,
+                                       fieldNameWidthSpaces=' '*fieldNameWidth)
                 shift = shift + fieldWidth
             
             mask = "0x%X" % ((1 << self.getNumUsedBits()) - 1)
