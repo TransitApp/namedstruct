@@ -122,7 +122,7 @@ class PrimitiveType(Type):
         return True
     
     def getFormatChar(self):
-        return "" # overwritten by subclass
+        return ""  # overwritten by subclass
 
     def pack(self, aPythonValue):  
         # returns a string representing the primitive
@@ -829,22 +829,21 @@ class StructType(Type, constants.AddConstantFunctions):
         # add equal
         if self.hasEqualMethod():
             result += """{indent}
-{indent}bool operator==(const {name}& other) const {{
-{indent}{indent}return {prefix}{comparisonExpression}{postfix};
-{indent}}}
-{indent}
-{indent}bool operator!=(const {name}& other) const {{
-{indent}{indent}return not (*this == other);
-{indent}}}
-""".format(name=self.getName(),
-           indent=indent,
-           prefix="(    " if len(self.names) > 1 else "",
-           postfix=")" if len(self.names) > 1 else "",
-           comparisonExpression=(("\n{i}{i}        and ".format(i=indent))
-                                 .join("{name}{suffix} == other.{name}{suffix}"
-                                       .format(name=n,
-                                               suffix=self.types[i].getNameSuffix())
-                                       for i, n in enumerate(self.names))))
+            {indent}bool operator==(const {name}& other) const {{
+            {indent}{indent}return {prefix}{comparisonExpression}{postfix};
+            {indent}}}
+            {indent}
+            {indent}bool operator!=(const {name}& other) const {{
+            {indent}{indent}return not (*this == other);
+            {indent}}}
+            """.format(name=self.getName(),
+                       indent=indent,
+                       prefix="(    " if len(self.names) > 1 else "",
+                       postfix=")" if len(self.names) > 1 else "",
+                       comparisonExpression=(("\n{i}{i}        and ".format(i=indent))
+                                             .join("{name}{suffix} == other.{name}{suffix}"
+                                                   .format(name=n, suffix=self.types[i].getNameSuffix())
+                                                   for i, n in enumerate(self.names))))
         # finish
         result = result + "} " + self.getName() + ";"
         return result
