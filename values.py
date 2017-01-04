@@ -26,36 +26,34 @@ def getValue(value):
     elif hasattr(value, "__iter__"):
         return getArrayValue(value)
     else:
-        raise Exception("can't convert " + str(value) + " to a Value");
+        raise Exception("can't convert " + str(value) + " to a Value")
 
 
 # given an array, will return a reasonable array value for it, i.e. makes a Value array by turning
 # every element into a value using "getValue"
 def getArrayValue(arrayValues, fixedSize=None):
     arrayValues = [getValue(v) for v in arrayValues]
-    if isinstance(arrayValues, basestring):
-        return string(value, fixedSize)
+    t = arrayValues[0].getType()
+    for v in arrayValues[1:]:
+        t = types.mergeTypes(t, v.getType())
+    if isinstance(t, types.ReferenceType):
+        raise Exception("can't build arrays out of references")
+    if t.isImmediate():  # elements are immediate - just build simple array
+        return SimpleArray(t, arrayValues, fixedSize)
     else:
-        t = arrayValues[0].getType()
-        for v in arrayValues[1:]:
-            t = types.mergeTypes(t, v.getType())
-        if isinstance(t, types.ReferenceType):
-            raise Exception("can't build arrays out of references")
-        if t.isImmediate():  # elements are immediate - just build simple array
-            return SimpleArray(t, arrayValues, fixedSize)
-        else:
-            return ReferenceArray(arrayValues, fixedSize)  # build reference array
-
+        return ReferenceArray(arrayValues, fixedSize)  # build reference array
+        
 
 class Value(object):
-    def __init__(self, type):
-        self.type = type;
+    def __init__(self, valueType):
+        self.type = valueType
 
     def getType(self):
-        return self.type;
+        return self.type
 
     # returns a tuple of strings, the immediate data, and the offseted data, which is assumed to start at dataOffset
-    # the caller has to ensure proper alignment of the immediate data, but the function will ensure alignment of the offseted data
+    # the caller has to ensure proper alignment of the immediate data 
+    # but the function will ensure alignment of the offseted data
     def pack(self, dataOffset=None):
         raise Exception()
 
@@ -74,16 +72,16 @@ class Value(object):
 
 # primitve value
 class PrimitiveValue(Value):
-    def __init__(self, type, pythonValue):
-        Value.__init__(self, type)
+    def __init__(self, valueType, pythonValue):
+        Value.__init__(self, valueType)
         self.pythonValue = pythonValue
-        type.assertValueHasType(pythonValue)
-
+        valueType.assertValueHasType(pythonValue)
+        
     def hasFixedWidth(self):
         return True
 
     def getPythonValue(self):
-        return self.pythonValue;
+        return self.pythonValue
 
     def pretty(self):
         return repr(self.pythonValue)
@@ -253,16 +251,16 @@ class Reference(Value):
 
 # all the array-like values
 class Array(Value):
-    def __init__(self, type, values):
-        Value.__init__(self, type)
+    def __init__(self, arrayType, values):
+        Value.__init__(self, arrayType)
         # check correctness on values - either incoming values are python values or Value objects
         self.elementsAreValueObjects = (len(values) > 0 and isinstance(values[0], Value))
         for v in values:
             if self.elementsAreValueObjects:
                 assert (isinstance(v, Value))
-                type.getElementType().merge(v.getType())
+                arrayType.getElementType().merge(v.getType())
             else:
-                type.getElementType().assertValueHasType(v)
+                arrayType.getElementType().assertValueHasType(v)
         self.values = values
 
     def getPythonValue(self):

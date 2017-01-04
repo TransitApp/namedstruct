@@ -945,7 +945,3 @@ class BitFieldArrayType(Type):
 
     def getWidth(self):
         raise Exception("cannot ask width of bitfield array type")
-
-    def merge(self, other):
-        _typeEqualAssert(self, other, "name", "fields")
-        return self
