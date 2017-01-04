@@ -83,7 +83,7 @@ class TestBitHelper(unittest.TestCase):
         for s, d in values:
             self.assertEqual(zigZagEncode(s), d)
             self.assertEqual(s, zigZagDecode(d))
-
+    
     def testZigZag2(self):
         for shift in range(40):
             for v in [1 << shift, (1 << shift) - 1, - (1 << shift), -((1 << shift) - 1)]:

@@ -28,79 +28,79 @@ def _typeEqualAssert(typeA, typeB, *keys):
         valueB = typeB.__getattribute__(key)
         if valueA != valueB:
             raise Exception(
-                "can't merge types " + repr(typeA) + " and " + repr(typeB) + ", attribute " + key + " doesn't match, "
-                + repr(valueA) + " vs " + repr(valueB))
+                    "can't merge types " + repr(typeA) + " and " + repr(typeB) + ", attribute " + key + " doesn't match, "
+                    + repr(valueA) + " vs " + repr(valueB))
 
 
 class Type(object):
     # the type name that is used in C to represent this type
     def __init__(self):
         self.name = None
-
+    
     def getName(self):
         return self.name
-
+    
     # a unique name to refer to the type, for most types it's just the c name
     def getUniqueName(self):
         return self.getName()
-
+    
     # returns all the types that are directly referred/stored in this type (i.e. returns child types)
     def getContainedTypes(self):
         return []
-
+    
     # returns, a generater of all the types that are referred/stored in this type (i.e. returns the whole type tree)
     def getAllContainedTypes(self):
         for t in self.getContainedTypes():
             for t2 in t.getAllContainedTypes():
                 yield t2
         yield self
-
+    
     # returns a c++ declaration of the type. If the type does not need to be declared (e.g. int32_t), returns None
     def getDeclaration(self, indent=stringhelper.indent):
         return None
-
+    
     def getForwardDeclaration(self):
         return None
-
+    
     def getAccessorFunction(self, memberName, indent=stringhelper.indent):
         return None
-
+    
     def getDeclarationNameSuffix(self):  # for example [] for arrays, [24] for fixed arrays
         return ""
-
+    
     def getNameSuffix(self):  # a suffix for the name - e.g. "ByteOffset" for references
         return ""
-
+    
     def getAlignment(self):
         raise Exception("unimplemented for " + repr(self))
-
+    
     def getWidth(self):
         raise Exception("unimplemented for " + repr(self))
-
+    
     def hasEqualMethod(self):
         return False
-
+    
     def assertValueHasType(self, aValue):
         raise Exception("cannot verify whether " + repr(aValue) + " matches type " + repr(self))
-
+    
     def __repr__(self):
         return self.getUniqueName()
-
+    
     # returns whether the type may change (width) - this will ignore contained types
     def isMutable(self):
         return False
-
+    
     # try if the data type is usually stored directly in a struct, rather than stored via a reference
     # this is not a strict requirement.
     def isImmediate(self):
         return False
-
+    
     # merge the other type with this -
     # will throw an error if the types are inconsistent (starting with their name)
     # the merge is to resolve unknown members
     def merge(self, other):
         raise Exception("unimplemented for " + repr(self))
-
+    
     def dotGraph(self, parent=None):
         result = ""
         if parent is None:
@@ -117,25 +117,25 @@ class Type(object):
 class PrimitiveType(Type):
     def getAlignment(self):  # by default the primtive type width=alignment
         return self.getWidth()
-
+    
     def isImmediate(self):
         return True
     
     def getFormatChar(self):
         return ""  # overwritten by subclass
-
-    def pack(self, aPythonValue):  
+    
+    def pack(self, aPythonValue):
         # returns a string representing the primitive
         f = "<"  # format prefix defining little endian, standard encoding
         formatChar = self.getFormatChar()
         return struct.pack(f + formatChar, aPythonValue)
-
+    
     def hasEqualMethod(self):
         return True
-
+    
     def assertValueHasType(self, aValue):
         self.pack(aValue)
-
+    
     # turns a python value into a namedstruct.Value of this primitive type
     def makeValue(self, aValue):
         raise Exception("unimplemented for " + repr(self))
@@ -143,17 +143,17 @@ class PrimitiveType(Type):
 
 class IntType(PrimitiveType):
     formats = {8: 'b', 16: 'h', 32: 'i', 64: 'q'}  # map from bit width -> format chars
-
+    
     def __init__(self, unsigned, bitWidth):
         super(IntType, self).__init__()
         assert bitWidth in IntType.formats
         self.name = ('u' if unsigned else '') + "int" + str(bitWidth) + "_t"
         self.unsigned = unsigned
         self.bitWidth = bitWidth
-
+    
     def getName(self):
         return self.name
-
+    
     def assertValueHasType(self, aValue):
         if not isinstance(aValue, numbers.Integral):
             raise Exception(str(aValue) + " is not integral")
@@ -162,18 +162,18 @@ class IntType(PrimitiveType):
                 (2 ** (self.bitWidth - 1) > aValue >= -2 ** (self.bitWidth - 1))):
             raise Exception(str(aValue) + " does not fit in " + self.name)
         self.pack(aValue)
-
+    
     def getWidth(self):
         return self.bitWidth / 8
-
+    
     def merge(self, other):
         _typeEqualAssert(self, other, "name")
         return self
-
+    
     def getFormatChar(self):
         f = IntType.formats[self.bitWidth]
         return f.upper() if self.unsigned else f.lower()
-
+    
     def makeValue(self, aValue):
         return values.Int(aValue, self.unsigned, self.bitWidth)
 
@@ -194,15 +194,15 @@ class CharType(IntType):
     def __init__(self):
         IntType.__init__(self, False, 8)
         self.name = "char"
-
+    
     def getFormatChar(self):
         return "s"
-
+    
     def assertValueHasType(self, aValue):
         if not isinstance(aValue, basestring) or len(aValue) != 1:
             raise Exception(str(aValue) + " is not a char")
         self.pack(aValue)
-
+    
     def makeValue(self, aChar):
         return values.Char(aChar)
 
@@ -213,7 +213,7 @@ CHAR = CharType()
 # bit fields
 class BitFieldType(Type):
     Field = collections.namedtuple("FieldType", ["name", "type", "bitWidth"])
-
+    
     def __init__(self, name, totalBitWidth=32):
         super(BitFieldType, self).__init__()
         self.dataType = IntType(True, totalBitWidth)
@@ -223,33 +223,33 @@ class BitFieldType(Type):
         self.fieldArray = []
         # self.fieldNames = []
         self.bitWidth = totalBitWidth
-
+    
     def getContainedTypes(self):
         return [field.type for field in self.fieldArray if field.type not in {'i', 'u'}]
-
+    
     def addField(self, field):
         if field.bitWidth + self.getNumUsedBits() > self.bitWidth:
             raise Exception("not enough bits to add field " + field.name + " to bit field " + self.name
                             + " (%d + %d > %d)" % (field.bitWidth, self.getNumUsedBits(), self.bitWidth))
         if field.name in self.fields:
             raise Exception(
-                "cannot use existing field name " + field.name + " as field name for bit field " + self.name)
+                    "cannot use existing field name " + field.name + " as field name for bit field " + self.name)
         stringhelper.assertIsValidIdentifier(field.name)
         self.fieldArray.append(field)
         self.fields[field.name] = len(self.fields)
-
+    
     # adds an int field to the bit field
     def add(self, name, bitWidth=1, signed=False):
         self.addField(BitFieldType.Field(name, "i" if signed else "u", bitWidth))
-
+    
     def addSigned(self, name, bitWidth):
         self.addField(BitFieldType.Field(name, "i", bitWidth))
-
+    
     def addEnum(self, name, enumType):  # TODO - signed, numBits?
         assert isinstance(enumType, EnumType)
         assert isinstance(enumType.enumType, IntType)
         self.addField(BitFieldType.Field(name, enumType, BitFieldType.getRequiredBitsForEnum(enumType)))
-
+    
     @staticmethod
     def getRequiredBitsForEnum(enumType):
         pythonValues = enumType.getPythonValues()
@@ -259,41 +259,41 @@ class BitFieldType(Type):
             numBits = bithelper.requiredBits(max(bithelper.zigZagEncode(max(pythonValues)),
                                                  bithelper.zigZagEncode(min(pythonValues))))
         return numBits
-
+    
     def getUniqueName(self):
         return (self.name + "("
                 + (','.join(str(field.bitWidth)
                             for field in self.fieldArray))
                 + ")%d" % self.bitWidth)
-
+    
     def getAlignment(self):
         return self.dataType.getAlignment()
-
+    
     def isImmediate(self):
         return True
-
+    
     def getWidth(self):
         return self.dataType.getWidth()
-
+    
     def getNumUsedBits(self):
         return sum(f.bitWidth for f in self.fieldArray)
-
+    
     def hasEqualMethod(self):
         return True
-
+    
     def getForwardDeclaration(self):
         return "struct " + self.getName() + ";"
-
+    
     def getDeclaration(self, indent=stringhelper.indent):
         result = "typedef struct __attribute__((packed)) %s {\n" % self.getName()
         # add member
         result = result + indent + self.dataType.getName() + " bits;\n"
         # add accessor functions
         shift = 0
-
+        
         def getTypeName(field):
             return "int" if field.type in {"i", "u"} else field.type.getUniqueName()
-
+        
         setters = ""
         if len(self.fieldArray) > 0:
             fieldNameWidth = max(len(field.name) + len(getTypeName(field)) for field in self.fieldArray)
@@ -306,7 +306,7 @@ class BitFieldType(Type):
                 fieldType = getTypeName(field)
                 space = " " * (fieldNameWidth - len(fieldName) - len(fieldType))
                 useZigZag = (field.type == 'i') if field.type in {'i', 'u'} else field.type.hasNegativeValues()
-
+                
                 formatDict = dict(fieldType=fieldType,
                                   indent=stringhelper.indent, fieldName=stringhelper.capitalizeFirst(fieldName),
                                   shift=shift, mask=mask, s=s, space=space, bitWidth=fieldWidth,
@@ -331,10 +331,10 @@ class BitFieldType(Type):
                                 "(intValue << 1)^(intValue>>{bitfieldBitsMinus1})" if useZigZag else "intValue") + ";\n"
                                                                                                                    "{indent}{indent}bits = (bits & ~({mask} << {shift:2})) | ((bitValue & {mask}) << {shift:2});\n"
                                                                                                                    "{indent}}}\n").format(
-                    intType=intType,
-                    storageType=storageType,
-                    bitfieldBitsMinus1=self.dataType.bitWidth - 1,
-                    **formatDict)
+                        intType=intType,
+                        storageType=storageType,
+                        bitfieldBitsMinus1=self.dataType.bitWidth - 1,
+                        **formatDict)
                 shift = shift + fieldWidth
             result += setters
             mask = "0x%X" % ((1 << self.getNumUsedBits()) - 1)
@@ -349,7 +349,7 @@ class BitFieldType(Type):
 }} {name};
 """.format(name=self.getName(), indent=indent, mask=mask)
             return result
-
+    
     def merge(self, other):
         _typeEqualAssert(self, other, "name", "fieldArray")
         return self
@@ -359,13 +359,13 @@ class BitFieldType(Type):
 class NullType(Type):
     def __init__(self):
         super(NullType, self).__init__()
-
+    
     def getName(self):
         return "void"
-
+    
     def isImmediate(self):
         return False
-
+    
     def merge(self, other):
         _typeEqualAssert(self, other)
         return self
@@ -377,45 +377,45 @@ class NullType(Type):
 # if the reference bit width is 8, will use unsigned references, otherwise the references are signed.
 class ReferenceType(Type):
     formats = {8: True, 16: False, 32: False}  # bit width -> isUnsigned?
-
+    
     def __init__(self, targetType, referenceBitWidth=32):
         super(ReferenceType, self).__init__()
         self.referenceBitWidth = referenceBitWidth
         self.targetType = targetType
         self.referenceType = IntType(ReferenceType.formats[referenceBitWidth], referenceBitWidth)
         self.name = self.referenceType.name
-
+    
     def __repr__(self):
         return self.getUniqueName()
-
+    
     #    def __repr__(self):
     #        return "ref"+str(self.referenceType.bitWidth) #+"->"+repr(self.targetType);
     def getContainedTypes(self):
         return [] if self.targetType is None else [self.targetType]
-
+    
     def getAlignment(self):
         return self.referenceType.getAlignment()
-
+    
     def getWidth(self):
         return self.referenceType.getWidth()
-
+    
     def isImmediate(self):
         return True
-
+    
     def getNameSuffix(self):
         return "ByteOffset"
-
+    
     def merge(self, other):
         _typeEqualAssert(self, other)
         self.referenceType.merge(other.referenceType)
         return ReferenceType(mergeTypes(self.targetType, other.targetType),
                              self.referenceBitWidth)
-
+    
     def getUniqueName(self):
         return ("ref" + str(self.referenceBitWidth)
                 + "->"
                 + (self.targetType.getUniqueName() if self.targetType is not None else "0"))
-
+    
     def getAccessorFunction(self, memberName, indent=stringhelper.indent):
         memberTypeName = self.targetType.getName() if self.targetType is not None else "void"
         functionName = "get" + stringhelper.capitalizeFirst(memberName)
@@ -438,10 +438,10 @@ class ArrayType(Type):
             raise Exception("cannot use type " + elementType + " for elements in array - width undefined")
         assert ((-elementType.getWidth()) % elementType.getAlignment() == 0)
         self.elementType = elementType
-
+    
     def getElementType(self):
         return self.elementType
-
+    
     def getContainedTypes(self):
         return [self.elementType]
 
@@ -464,32 +464,32 @@ class SimpleArrayType(ArrayType):
         if byteAlignment is not None:
             if byteAlignment < elementType.getAlignment():
                 raise Exception("simple array type alignment has to be larger or equal the alignment of the elements")
-
+    
     def getUniqueName(self):
         name = self.elementType.getUniqueName() + self.suffix
         if self.alignment != self.elementType.getAlignment():
             name += "@" + str(self.alignment)
         return name
-
+    
     def getDeclarationNameSuffix(self):
         return self.suffix
-
+    
     def isImmediate(self):
         return self.fixedSize is not None
-
+    
     def getAlignment(self):
         return self.alignment
-
+    
     def getWidth(self):
         if self.fixedSize is not None:
             return self.fixedSize * self.elementType.getWidth()
         else:
             raise Exception("non-fixed array has no width")
-
+    
     def hasEqualMethod(self):
         # TODO - allow overriding the equality test expression, thus allowing equal where self.fixedSize != None
         return False
-
+    
     def merge(self, other):
         _typeEqualAssert(self, other, "fixedSize", "alignment")
         t1 = self.elementType
@@ -503,7 +503,7 @@ class SimpleArrayType(ArrayType):
 # array of references - modelled as a struct
 class ReferenceArrayType(ArrayType):
     infix = {8: "8", 16: "16", 32: ""}  # infix used to denote the array
-
+    
     def __init__(self, elementType, fixedSize=None, referenceBitWidth=32):
         ArrayType.__init__(self, ReferenceType(elementType, referenceBitWidth))
         self.referenceBitWidth = referenceBitWidth
@@ -513,22 +513,22 @@ class ReferenceArrayType(ArrayType):
             arraySuffix = "Size" + str(fixedSize) + arraySuffix
         self.name = elementType.getName() + arraySuffix
         self.uniqueName = elementType.getUniqueName() + arraySuffix
-
+    
     def getCointainedTypes(self):
         return [self.elementType.targetType]
-
+    
     def getUniqueName(self):
         return self.uniqueName
-
+    
     def isImmediate(self):
         return self.fixedSize
-
+    
     def getWidth(self):
         if self.fixedSize is not None:
             return self.fixedSize * self.elementType.getWidth()
         else:
             raise Exception("non-fixed array has no width")
-
+    
     def merge(self, other):
         _typeEqualAssert(self, other, "fixedSize", "referenceBitWidth")
         t1 = self.elementType.targetType
@@ -537,20 +537,20 @@ class ReferenceArrayType(ArrayType):
             return ReferenceArrayType(mergeTypes(t1, t2),  # we only have to merge if the unique type names mismatch
                                       self.fixedSize)
         return self
-
+    
     def getAlignment(self):
         return min(self.elementType.getAlignment(), 4)
-
+    
     def getForwardDeclaration(self):
         return "struct " + self.getName() + ";"
-
+    
     def getDeclaration(self, indent=stringhelper.indent):
         result = "typedef struct __attribute__((packed)) %s {\n" % self.getName()
         # add member
         result = (result + indent + self.elementType.referenceType.getName() + " elementByteOffsets"
                   + "[" + (str(self.fixedSize) if self.fixedSize is not None else "") + "]"
                   + ";\n" + indent + "\n")
-
+        
         # add accessor function
         elementTypeName = self.elementType.targetType.getName()
         result += (
@@ -559,7 +559,7 @@ class ReferenceArrayType(ArrayType):
             "{indent}inline {elementTypeName}* get(const int index) const {{\n" +
             "{indent}{indent}return ({elementTypeName}*)(uintptr_t(this)+this->elementByteOffsets[index]);\n" +
             "{indent}}}").format(indent=stringhelper.indent, elementTypeName=elementTypeName)
-
+        
         # finish
         result = result + "\n} " + self.getName() + ";"
         return result
@@ -596,22 +596,22 @@ class EnumType(Type):
             enumValue = values.EnumValue(self, name)  # the enum value constructor requres the self.mapping value
             self.values[name] = enumValue
             setattr(self, name, enumValue)
-
+    
     def __getitem__(self, key):
         return self.values[key]
     
     def __getattr__(self, item):
         return self.values[item]
-
+    
     def getEnumType(self):
         return self.enumType
-
+    
     def getUniqueName(self):
         return self.uniqueName
-
+    
     def getContainedTypes(self):
         return [self.getEnumType()]
-
+    
     def getDeclaration(self, indent=stringhelper.indent):
         header = "enum class {uniqueName} : {valueType} {{".format(uniqueName=self.uniqueName, valueType=self.name)
         members = [
@@ -619,10 +619,10 @@ class EnumType(Type):
             for name, value in self.mapping.items()
             ]
         return header + "\n" + ",\n".join(members) + "\n};"
-
+    
     def getForwardDeclaration(self):
         return "enum class {name} : {type};".format(name=self.uniqueName, type=self.name)
-
+    
     def getAccessorFunction(self, memberName, indent=stringhelper.indent):
         functionName = "get" + stringhelper.capitalizeFirst(memberName)
         functionCode = (
@@ -632,48 +632,48 @@ class EnumType(Type):
             "}}").format(indent=stringhelper.indent, functionName=functionName, suffix=self.getNameSuffix(),
                          memberName=memberName, type=self.uniqueName)
         return functionCode
-
+    
     def getDeclarationNameSuffix(self):  # for example [] for arrays, [24] for fixed arrays
         return ""
-
+    
     def getNameSuffix(self):  # a suffix for the name - e.g. "ByteOffset" for references
         return "EnumValue"
-
+    
     def getAlignment(self):
         return self.getEnumType().getAlignment()
-
+    
     def getWidth(self):
         return self.getEnumType().getAlignment()
-
+    
     def hasEqualMethod(self):
         return True
-
+    
     def assertValueHasType(self, aValue):
         raise Exception("cannot verify whether " + repr(aValue) + " matches type " + repr(self))
-
+    
     def __repr__(self):
         return self.getUniqueName()
-
+    
     def isMutable(self):
         return False
-
+    
     def isImmediate(self):
         return True
-
+    
     # merge the other type with this -
     # will throw an error if the types are inconsistent (starting with their name)
     # the merge is to resolve unknown members
     def merge(self, other):
         _typeEqualAssert(self, other, "name", "enumType", "mapping")
         return self
-
+    
     # returns the set of values used by theis enum
     def getPythonValues(self):
         return set(v.getPythonValue() for v in self.mapping.values())
-
+    
     def hasNegativeValues(self):
         return self._hasNegativeValues
-
+        
         # this is the only type that is mutable
 
 
@@ -689,14 +689,14 @@ class StructType(Type, constants.AddConstantFunctions):
         self.offsets = []  # list of member offsets
         self.types = []  # list of member types
         self.numPadBytes = 0  # the total number of padding bytes in struct
-
+    
     def addConstant(self, name, value):  # should return self
         self.constantPool.addConstant(name, value)
         return self
-
+    
     def getConstantPool(self):
         return self.constantPool
-
+    
     # will add padding bytes until the current struct is aligned to the given byte alignment
     # returns how many padding bytes were added
     def addPadding(self, byteAlignment):
@@ -710,7 +710,7 @@ class StructType(Type, constants.AddConstantFunctions):
                 currentWidth += 1
                 padding += 1
         return padding
-
+    
     # returns how many padding bytes were added before adding the member
     def addMember(self, name, memberType):
         if not self.mutable:
@@ -728,24 +728,24 @@ class StructType(Type, constants.AddConstantFunctions):
         self.types.append(memberType)
         self.alignment = max(self.alignment, memberType.getAlignment())
         return padding
-
+    
     # returns the byte offset,type,name for the member at the given index
     def getMember(self, index):
         return self.offsets[index], self.types[index], self.names[index]
-
+    
     def getWidth(self):
         if self.mutable:
             raise Exception("cannot ask the width of non-finished struct type " + repr(self))
         return self.getCurrentWidth()
-
+    
     def hasEqualMethod(self):
         return len(self.members) > 0 and all(t.hasEqualMethod() for t in self.types)
-
+    
     def getCurrentWidth(self):
         if len(self.offsets) == 0:
             return 0
         return self.offsets[-1] + self.types[-1].getWidth()
-
+    
     # this will finalize the definition of this struct. The Struct may never grow in size
     # from this point on, otherwise it will become incompatible. Reserved elements may be added
     # to reserve space for future additions. After finalizing, the struct may have a fixed
@@ -756,17 +756,17 @@ class StructType(Type, constants.AddConstantFunctions):
         paddingBytes = self.addPadding(byteAlignment)
         self.mutable = False
         return paddingBytes
-
+    
     def isImmediate(self):
         return not self.mutable
-
+    
     # alignment of the struct is the max of all the members
     def getAlignment(self):
         return self.alignment
-
+    
     def getContainedTypes(self):
         return list(self.types)
-
+    
     def merge(self, other):
         _typeEqualAssert(self, other, "name", "mutable", "names")
         # TODO - merge constant pools
@@ -791,19 +791,19 @@ class StructType(Type, constants.AddConstantFunctions):
         result.mutable = self.mutable
         result.constantPool = self.constantPool  # FIXME - This is a hack! Properly deal with cosntant pools!
         return result
-
+    
     def getForwardDeclaration(self):
         return "struct " + self.getName() + ";"
-
+    
     def getDeclaration(self, indent=stringhelper.indent):
         result = "typedef struct __attribute__((packed)) %s {\n" % self.getName()
-
+        
         # add constants
         if self.constantPool.getNumConstants() > 0:
             result = (result
                       + indent
                       + self.constantPool.getConstantDeclarations().replace("\n", "\n" + indent) + "\n")
-
+        
         # add members
         typeWidth = max([0] + [len(memberType.getName()) for memberType in self.types])
         for i, memberName in enumerate(self.names):
@@ -817,7 +817,7 @@ class StructType(Type, constants.AddConstantFunctions):
                       + memberName + memberType.getDeclarationNameSuffix() + ";"
                       + comment
                       + "\n")
-
+        
         # add accessor functions
         functions = ""
         for i, memberName in enumerate(self.names):
@@ -828,7 +828,7 @@ class StructType(Type, constants.AddConstantFunctions):
                 functions += function
         if len(functions) > 0:
             result = result + functions[:-len(indent)]
-
+        
         # add equal
         if self.hasEqualMethod():
             result += """{indent}
@@ -863,28 +863,28 @@ class BitFieldArrayType(Type):
             stringhelper.assertIsValidIdentifier(field)
             assert (field != 'bitFieldArrayEntryBits')
         self.fields = fields
-
+    
     def getFields(self):
         return self.fields
-
+    
     def getUniqueName(self):
         return "BitFieldArray:" + self.name
-
+    
     def getAlignment(self):
         return 4
-
+    
     def getForwardDeclaration(self):
         return "struct " + self.getName() + ";"
-
+    
     def getDeclaration(self, indent=stringhelper.indent):
         result = "typedef struct __attribute__((packed)) %s {\n" % self.getName()
-
+        
         # add members
         result += indent + "uint16_t bitFieldArrayEntryBits;\n"
         for i, field in enumerate(self.fields):
             result += indent + "uint16_t %sBitOffset;\n" % field
         result += indent + "uint16_t endOffset;"
-
+        
         # add accessor functions
         # by index accessors:
         result += """{indent}
@@ -949,17 +949,17 @@ class BitFieldArrayType(Type):
 {indent}{indent}return has{Field}() ? get{Field}(index) : defaultValue;
 {indent}}}""".format(i=i, field=field, indent=stringhelper.indent, nextBitOffset=nextBitOffset,
                      Field=stringhelper.capitalizeFirst(field))
-
+        
         # finish
         result = result + "\n} " + self.getName() + ";"
         return result
-
+    
     def merge(self, other):
         _typeEqualAssert(self, other, "fields")
         return self
-
+    
     def isImmediate(self):
         return False
-
+    
     def getWidth(self):
         raise Exception("cannot ask width of bitfield array type")

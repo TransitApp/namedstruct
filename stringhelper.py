@@ -38,7 +38,7 @@ def assertIsValidIdentifier(name):
         raise Exception(repr(name) + " not a valid identifier")
     if name.endswith("ByteOffset"):
         raise Exception(
-            repr(name) + " - an identifier may not end with ByteOffset, that suffix is reserved for internal use.")
+                repr(name) + " - an identifier may not end with ByteOffset, that suffix is reserved for internal use.")
     if isCppKeyword(name):
         raise Exception(repr(name) + " cannot be an identifier, it is a C/C++ keyword")
 
