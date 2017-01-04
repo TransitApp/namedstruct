@@ -218,7 +218,7 @@ def generateTests(quiet=False):
                   .add("day", 11, 5)
                   .add("hour", 9, 5)
                   .add("minute", 23, 6),
-                   BitField("timeBitField")
+                            BitField("timeBitField")
                   .add("year", 2012, 11)
                   .add("month", 12, 4)
                   .add("day", 12, 5)

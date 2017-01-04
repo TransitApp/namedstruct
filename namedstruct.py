@@ -4,6 +4,7 @@ import stringhelper
 import types
 import values
 
+
 # namedstruct library
 # allows creation of binary files like you would build a json file, by just adding
 # key:value pairs to some data blob. But the binary dump contains no

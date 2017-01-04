@@ -81,7 +81,7 @@ class Type(object):
         raise Exception("cannot verify whether " + repr(aValue) + " matches type " + repr(self))
 
     def __repr__(self):
-        return self.getUniqueName();
+        return self.getUniqueName()
 
     # returns whether the type may change (width) - this will ignore contained types
     def isMutable(self):
@@ -90,7 +90,7 @@ class Type(object):
     # try if the data type is usually stored directly in a struct, rather than stored via a reference
     # this is not a strict requirement.
     def isImmediate(self):
-        return False;
+        return False
 
     # merge the other type with this -
     # will throw an error if the types are inconsistent (starting with their name)
@@ -113,7 +113,7 @@ class Type(object):
 
 class PrimitiveType(Type):
     def getAlignment(self):  # by default the primtive type width=alignment
-        return self.getWidth();
+        return self.getWidth()
 
     def isImmediate(self):
         return True
@@ -149,9 +149,9 @@ class IntType(PrimitiveType):
     def assertValueHasType(self, aValue):
         if not isinstance(aValue, numbers.Integral):
             raise Exception(str(aValue) + " is not integral")
-        if not ((aValue >= 0 and aValue < 2 ** self.bitWidth)
+        if not ((0 <= aValue < 2 ** self.bitWidth)
                 if self.unsigned else
-                (aValue < 2 ** (self.bitWidth - 1) and aValue >= -2 ** (self.bitWidth - 1))):
+                (2 ** (self.bitWidth - 1) > aValue >= -2 ** (self.bitWidth - 1))):
             raise Exception(str(aValue) + " does not fit in " + self.name)
         self.pack(aValue)
 
@@ -302,7 +302,7 @@ class BitFieldType(Type):
                                   indent=stringhelper.indent, fieldName=stringhelper.capitalizeFirst(fieldName),
                                   shift=shift, mask=mask, s=s, space=space, bitWidth=fieldWidth,
                                   fieldNameWidthSpaces=' ' * fieldNameWidth)
-                result = result + (
+                result += (
                     "{indent}/** {bitWidth:2} bit{s} */ inline {fieldType} get{fieldName}() {space}const {{" +
                     " auto v = " + (
                         "(bits >> {shift:2}) & {mask}" if fieldWidth > 0 else ' ' * (16 + maskChars) + "0") + "; "
@@ -314,14 +314,14 @@ class BitFieldType(Type):
                 intType = (
                     IntType(unsigned=False,
                             bitWidth=self.dataType.bitWidth).getName() + " ") if useZigZag else storageType
-                setters = setters + ("{indent}\n"
-                                     "{indent}inline void set{fieldName}({fieldType} v) {{\n"
-                                     "{indent}{indent}{intType} intValue = static_cast<{intType}>(v);\n"
-                                     "{indent}{indent}{storageType} bitValue = " +
-                                     (
-                                         "(intValue << 1)^(intValue>>{bitfieldBitsMinus1})" if useZigZag else "intValue") + ";\n"
-                                                                                                                            "{indent}{indent}bits = (bits & ~({mask} << {shift:2})) | ((bitValue & {mask}) << {shift:2});\n"
-                                                                                                                            "{indent}}}\n").format(
+                setters += ("{indent}\n"
+                            "{indent}inline void set{fieldName}({fieldType} v) {{\n"
+                            "{indent}{indent}{intType} intValue = static_cast<{intType}>(v);\n"
+                            "{indent}{indent}{storageType} bitValue = " +
+                            (
+                                "(intValue << 1)^(intValue>>{bitfieldBitsMinus1})" if useZigZag else "intValue") + ";\n"
+                                                                                                                   "{indent}{indent}bits = (bits & ~({mask} << {shift:2})) | ((bitValue & {mask}) << {shift:2});\n"
+                                                                                                                   "{indent}}}\n").format(
                     intType=intType,
                     storageType=storageType,
                     bitfieldBitsMinus1=self.dataType.bitWidth - 1,
@@ -339,7 +339,7 @@ class BitFieldType(Type):
 {indent}}}
 }} {name};
 """.format(name=self.getName(), indent=indent, mask=mask)
-            return result;
+            return result
 
     def merge(self, other):
         _typeEqualAssert(self, other, "name", "fieldArray")
@@ -355,7 +355,7 @@ class NullType(Type):
         return "void"
 
     def isImmediate(self):
-        return False;
+        return False
 
     def merge(self, other):
         _typeEqualAssert(self, other)
@@ -371,17 +371,17 @@ class ReferenceType(Type):
 
     def __init__(self, targetType, referenceBitWidth=32):
         self.referenceBitWidth = referenceBitWidth
-        self.targetType = targetType;
-        self.referenceType = IntType(ReferenceType.formats[referenceBitWidth], referenceBitWidth);
+        self.targetType = targetType
+        self.referenceType = IntType(ReferenceType.formats[referenceBitWidth], referenceBitWidth)
         self.name = self.referenceType.name
 
     def __repr__(self):
-        return self.getUniqueName();
+        return self.getUniqueName()
 
     #    def __repr__(self):
     #        return "ref"+str(self.referenceType.bitWidth) #+"->"+repr(self.targetType);
     def getContainedTypes(self):
-        return [] if self.targetType == None else [self.targetType]
+        return [] if self.targetType is None else [self.targetType]
 
     def getAlignment(self):
         return self.referenceType.getAlignment()
@@ -390,7 +390,7 @@ class ReferenceType(Type):
         return self.referenceType.getWidth()
 
     def isImmediate(self):
-        return True;
+        return True
 
     def getNameSuffix(self):
         return "ByteOffset"
@@ -404,11 +404,11 @@ class ReferenceType(Type):
     def getUniqueName(self):
         return ("ref" + str(self.referenceBitWidth)
                 + "->"
-                + (self.targetType.getUniqueName() if self.targetType != None else "0"))
+                + (self.targetType.getUniqueName() if self.targetType is not None else "0"))
 
     def getAccessorFunction(self, memberName, indent=stringhelper.indent):
-        memberTypeName = self.targetType.getName() if self.targetType != None else "void"
-        functionName = "get" + stringhelper.capitalizeFirst(memberName);
+        memberTypeName = self.targetType.getName() if self.targetType is not None else "void"
+        functionName = "get" + stringhelper.capitalizeFirst(memberName)
         functionCode = (
             "/** Returns {memberTypeName}-pointer to member {memberName}.\n" +
             " *  If {memberName} is null/void then the result is undefined. */\n" +
@@ -423,7 +423,7 @@ class ArrayType(Type):
     def __init__(self, elementType):
         if elementType.isMutable():
             raise Exception("cannot use type " + elementType + " for elements in array - it's not finalized")
-        if elementType.getWidth() == None:  # may raise exception if width is undefined
+        if elementType.getWidth() is None:  # may raise exception if width is undefined
             raise Exception("cannot use type " + elementType + " for elements in array - width undefined")
         assert ((-elementType.getWidth()) % elementType.getAlignment() == 0)
         self.elementType = elementType
@@ -445,12 +445,12 @@ class SimpleArrayType(ArrayType):
         self.fixedSize = fixedSize
         self.suffix = ""
         self.name = elementType.getName()
-        if fixedSize != None:
+        if fixedSize is not None:
             self.suffix = "[" + str(fixedSize) + "]"
         else:
             self.suffix = "[]"
-        self.alignment = byteAlignment if byteAlignment != None else elementType.getAlignment()
-        if byteAlignment != None:
+        self.alignment = byteAlignment if byteAlignment is not None else elementType.getAlignment()
+        if byteAlignment is not None:
             if byteAlignment < elementType.getAlignment():
                 raise Exception("simple array type alignment has to be larger or equal the alignment of the elements")
 
@@ -470,7 +470,7 @@ class SimpleArrayType(ArrayType):
         return self.alignment
 
     def getWidth(self):
-        if self.fixedSize != None:
+        if self.fixedSize is not None:
             return self.fixedSize * self.elementType.getWidth()
         else:
             raise Exception("non-fixed array has no width")
@@ -498,8 +498,8 @@ class ReferenceArrayType(ArrayType):
         self.referenceBitWidth = referenceBitWidth
         self.fixedSize = fixedSize
         arraySuffix = "Ref" + ReferenceArrayType.infix[referenceBitWidth] + "Array"
-        if fixedSize != None:
-            fixedSize + 1;  # check int
+        if fixedSize is not None:
+            fixedSize + 1  # check int
             arraySuffix = "Size" + str(fixedSize) + arraySuffix
         self.name = elementType.getName() + arraySuffix
         self.uniqueName = elementType.getUniqueName() + arraySuffix
@@ -514,7 +514,7 @@ class ReferenceArrayType(ArrayType):
         return self.fixedSize
 
     def getWidth(self):
-        if self.fixedSize != None:
+        if self.fixedSize is not None:
             return self.fixedSize * self.elementType.getWidth()
         else:
             raise Exception("non-fixed array has no width")
@@ -538,12 +538,12 @@ class ReferenceArrayType(ArrayType):
         result = "typedef struct __attribute__((packed)) %s {\n" % self.getName()
         # add member
         result = (result + indent + self.elementType.referenceType.getName() + " elementByteOffsets"
-                  + "[" + (str(self.fixedSize) if self.fixedSize != None else "") + "]"
+                  + "[" + (str(self.fixedSize) if self.fixedSize is not None else "") + "]"
                   + ";\n" + indent + "\n")
 
         # add accessor function
         elementTypeName = self.elementType.targetType.getName()
-        result = result + (
+        result += (
             "{indent}/** Returns {elementTypeName}-pointer to the element at the given index.\n" +
             "{indent} *  If the element at the given index is null/void, then the result is undefined. */\n" +
             "{indent}inline {elementTypeName}* get(const int index) const {{\n" +
@@ -691,9 +691,9 @@ class StructType(Type, constants.AddConstantFunctions):
         if currentWidth > 0:
             while (-currentWidth) % byteAlignment != 0:
                 self.addMember("paddingByte" + str(self.numPadBytes), PADDING)
-                self.numPadBytes = self.numPadBytes + 1
-                currentWidth = currentWidth + 1
-                padding = padding + 1
+                self.numPadBytes += 1
+                currentWidth += 1
+                padding += 1
         return padding
 
     # returns how many padding bytes were added before adding the member
@@ -791,7 +791,7 @@ class StructType(Type, constants.AddConstantFunctions):
         typeWidth = max([0] + [len(memberType.getName()) for memberType in self.types])
         for i, memberName in enumerate(self.names):
             memberType = self.types[i]
-            memberName = memberName + memberType.getNameSuffix();
+            memberName = memberName + memberType.getNameSuffix()
             space = " " * (typeWidth + 1 - len(memberType.getName()))
             comment = ""  # comment comes from struct or from type
             result = (result
@@ -806,9 +806,9 @@ class StructType(Type, constants.AddConstantFunctions):
         for i, memberName in enumerate(self.names):
             memberType = self.types[i]
             function = memberType.getAccessorFunction(memberName, indent=stringhelper.indent)
-            if function != None:
+            if function is not None:
                 function = ("\n" + function + "\n").replace("\n", "\n" + indent)
-                functions = functions + function
+                functions += function
         if len(functions) > 0:
             result = result + functions[:-len(indent)]
 

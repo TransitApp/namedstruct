@@ -19,8 +19,8 @@ def toBits(number, numBits=None):
     bits = []
     while (number > 0):
         bits.append(number & 1)
-        number = number >> 1;
-    if numBits == None: return bits
+        number >>= 1
+    if numBits is None: return bits
     if (len(bits) > numBits): raise Exception("number %d doesn't fit in %d bits" % (theNumber, numBits));
     return bits + [0] * (numBits - len(bits))  # add 0 bits
 
@@ -43,7 +43,7 @@ def packBitsToChars(bits):
             result.append(c)
             c = 0
             numBits = 0
-        c = c + (b << numBits)
+        c += b << numBits
         numBits += 1
     if (numBits > 0):
         result.append(c)

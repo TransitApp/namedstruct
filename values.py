@@ -313,7 +313,7 @@ class SimpleArray(Array):
         return (self.type.getElementType().getWidth()
                 * (len(self.values) if self.fixedSize is None else self.fixedSize))
 
-    def pack(self, dataOffset=None):
+    def pack(self, dataOffset=None, elementOffsetsRelativeToElement=True):
         immediateData, offsetData = Array.pack(self, dataOffset)  # call super pack
         if self.fixedSize is not None:
             # fill the data with zero bytes 
@@ -397,7 +397,7 @@ class ReferenceArray(Array):
         return (self.type.getElementType().getWidth()
                 * (len(self.values) if self.fixedSize is None else self.fixedSize))
 
-    def pack(self, dataOffset=None):
+    def pack(self, dataOffset=None, elementOffsetsRelativeToElement=True):
         if dataOffset is None:
             dataOffset = self.getImmediateDataSize()
             combine = True

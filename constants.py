@@ -23,7 +23,7 @@ class ConstantPool(AddConstantFunctions):
 
     def addConstant(self, name, value):
         import values  # to avoid circular dependencies
-        
+
         value = values.getValue(values._dictGet(value, name))
         value.getLiteral()  # check whether there is a literal method
         self.constants[name] = value
@@ -52,6 +52,7 @@ class ConstantPool(AddConstantFunctions):
 
 
 class EnumConstant(object):
+    # noinspection PyUnusedLocal
     def __init__(self, name, keyToValue):
         pass
 

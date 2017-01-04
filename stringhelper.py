@@ -12,7 +12,7 @@ def stringToChars(string):
 # ********** creating types/headers *****************************************
 # given a string, returns a copy with the first letter capitalized, and the others unchanged
 def capitalizeFirst(string):
-    return string[0].upper() + string[1:];
+    return string[0].upper() + string[1:]
 
 
 def escapeChar(char):
@@ -65,11 +65,11 @@ _cPlusPlusKeywords = frozenset(["alignas", "alignof", "and", "and_eq", "asm", "a
 # ********** pretty printing *************************************************
 # given a string such as "[abccdefghijklmnopqrstuvwxyz]", will ensure the maximum length of the string 
 # is at most maxLength, for example if the max length is 15, it will return "26:[abcdefg...]"
-maxRepresentationLength = 60;
+maxRepresentationLength = 60
 
 
 def cutStringIfTooLong(string, maxLength=maxRepresentationLength, length=None):
-    if length == None:
+    if length is None:
         length = len(string)
     if len(string) <= maxLength:
         return string
@@ -85,7 +85,7 @@ def getColumnFormat(values, maxLength=None, default=1, rightAlign=True):
     if len(values) > 0:
         length = max(len(str(v)) for v in values)
     align = "+" if rightAlign else "-"
-    if maxLength != None and length >= maxLength:
+    if maxLength is not None and length >= maxLength:
         length = maxLength
     return "%{align}{length}.{length}s".format(align=align, length=length)
 
