@@ -17,7 +17,7 @@ def mergeTypes(typeA, typeB):
     return typeA.merge(typeB)
 
 
-# given two types, will ensure that 
+# given two types, will ensure that
 # the python type of typeA and typeB are the same,
 # and that all given keys are the same
 def _typeEqualAssert(typeA, typeB, *keys):
@@ -116,7 +116,7 @@ class PrimitiveType(Type):
         return self.getWidth();
 
     def isImmediate(self):
-        return True;
+        return True
 
     def pack(self, aPythonValue):  # returns a string representing the primitive
         f = "<"  # format prefix defining little endian, standard encoding
@@ -243,12 +243,12 @@ class BitFieldType(Type):
 
     @staticmethod
     def getRequiredBitsForEnum(enumType):
-        values = enumType.getPythonValues()
+        pythonValues = enumType.getPythonValues()
         if not enumType.hasNegativeValues():
-            numBits = bithelper.requiredBits(max(values))
+            numBits = bithelper.requiredBits(max(pythonValues))
         else:
-            numBits = bithelper.requiredBits(max(bithelper.zigZagEncode(max(values)),
-                                                 bithelper.zigZagEncode(min(values))))
+            numBits = bithelper.requiredBits(max(bithelper.zigZagEncode(max(pythonValues)),
+                                                 bithelper.zigZagEncode(min(pythonValues))))
         return numBits
 
     def getUniqueName(self):
@@ -261,7 +261,7 @@ class BitFieldType(Type):
         return self.dataType.getAlignment()
 
     def isImmediate(self):
-        return True;
+        return True
 
     def getWidth(self):
         return self.dataType.getWidth()
@@ -476,7 +476,8 @@ class SimpleArrayType(ArrayType):
             raise Exception("non-fixed array has no width")
 
     def hasEqualMethod(self):
-        return False  # TODO - allow overriding the equality test expression, thus allowing equal where self.fixedSize != None
+        # TODO - allow overriding the equality test expression, thus allowing equal where self.fixedSize != None
+        return False
 
     def merge(self, other):
         _typeEqualAssert(self, other, "fixedSize", "alignment")

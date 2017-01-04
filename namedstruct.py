@@ -1,8 +1,6 @@
 import collections
 
-import constants
 import stringhelper
-import types
 import values
 
 
@@ -11,7 +9,7 @@ import values
 # key:value pairs to some data blob. But the binary dump contains no
 # metadata. Information about the file format is generated from the data blob
 # as a c++ header file, which allows reading the data.
-# Thus, to decode a file, the c++ header file needs to be available in order to 
+# Thus, to decode a file, the c++ header file needs to be available in order to
 # decode the data. Advantage is small size, exact control of how the stored data
 # is represented, and fast access. There is no decoding, data is laid as plain
 # old structs in memory - except for references, which are stored as byte offsets
@@ -22,7 +20,7 @@ import values
 #
 # This library supports many data types:
 #   primitive data, structs, strings, arrays (fixed length/flexible, reference arrays),
-#   bitfields, binary blobs, references (incl. typed null references), 
+#   bitfields, binary blobs, references (incl. typed null references),
 #   constant declarations
 #
 # Refer to the test cases at the bottom to see how the library can be used.
@@ -30,7 +28,7 @@ import values
 #   # generate data
 #   s = (namedstruct.Struct("MyStruct") # create struct with type name: MyStruct
 #        .addInt32("bla",234)  # add an signed 32-bit integer with value 234, and name 'bla'
-#        .add("greet","Hello World")) # add a string as a ref to char - the type is inferred from the argument                 
+#        .add("greet","Hello World")) # add a string as a ref to char - the type is inferred from the argument
 #   
 #   # get c++ header definition
 #   print namedstruct.generateHeader(s)
@@ -186,6 +184,8 @@ import values
 # constantPools may be a single constantPool or a sequence of constant Pools
 def generateHeader(valuesOrEnumTypes, constantPools=None, namespace=None, define=None, headText="",
                    indent=stringhelper.indent):
+    import constants # Avoid circular dependencies
+    
     # massage arguments
     if isinstance(valuesOrEnumTypes, values.Value): valuesOrEnumTypes = [valuesOrEnumTypes]
     if constantPools == None: constantPools = []

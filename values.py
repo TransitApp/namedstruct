@@ -42,7 +42,7 @@ def getArrayValue(arrayValues, fixedSize=None):
         return SimpleArray(t, arrayValues, fixedSize)
     else:
         return ReferenceArray(arrayValues, fixedSize)  # build reference array
-        
+
 
 class Value(object):
     def __init__(self, valueType):
@@ -76,7 +76,7 @@ class PrimitiveValue(Value):
         Value.__init__(self, valueType)
         self.pythonValue = pythonValue
         valueType.assertValueHasType(pythonValue)
-        
+
     def hasFixedWidth(self):
         return True
 
