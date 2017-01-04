@@ -225,6 +225,7 @@ def generateTests(quiet=False):
                   .add("hour", 10, 5)
                   .add("minute", 24, 6))
     struct35.addArray("dates", [firstTime, secondTime])
+    add(struct35)
 
     add(Struct("testStruct36")
         .add("s0", Struct("testNestedStruct3").addUInt8("x", 0xab).addUInt8("y", 0xab))
