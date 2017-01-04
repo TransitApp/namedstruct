@@ -21,7 +21,7 @@ def getValue(value):
         return Int(value)
     elif isinstance(value, basestring):
         return String(value)
-    elif value == None:
+    elif value is None:
         return Null()
     elif hasattr(value, "__iter__"):
         return getArrayValue(value)
@@ -77,7 +77,8 @@ class PrimitiveValue(Value):
         self.pythonValue = pythonValue
         valueType.assertValueHasType(pythonValue)
 
-    def hasFixedWidth(self):
+    @staticmethod
+    def hasFixedWidth():
         return True
 
     def getPythonValue(self):
@@ -93,9 +94,9 @@ class PrimitiveValue(Value):
 # integer value
 class Int(PrimitiveValue):
     def __init__(self, intValue, unsigned=False, bitWidth=32):
-        type = types.IntType(unsigned, bitWidth)
-        type.assertValueHasType(intValue)
-        PrimitiveValue.__init__(self, type, intValue)
+        valueType = types.IntType(unsigned, bitWidth)
+        valueType.assertValueHasType(intValue)
+        PrimitiveValue.__init__(self, valueType, intValue)
 
     def getLiteral(self):
         return str(self.getPythonValue())
@@ -126,7 +127,7 @@ class BitField(Value):
         self.values = []
 
     def add(self, name, value, bitWidth=1):
-        if not (value >= 0 and value < 2 ** bitWidth):
+        if not (0 <= value < 2 ** bitWidth):
             raise Exception("bitfield %s cannot store unsigned (%s, %d, bitWidth=%d)"
                             % (self.type.name, name, value, bitWidth))
         self.type.add(name, bitWidth)
@@ -160,13 +161,9 @@ class BitField(Value):
         nameLen = max(len(field.name) for field in self.type.fieldArray) if len(self.values) > 0 else 0
         for i, memberValue in enumerate(self.values):
             field = self.type.fieldArray[i]
-            isEnum = field.type not in {'u', 'i'}
-            result = result + (("\n{name:" + str(nameLen) + "}:{type}{separator}{bitWidth:<2} = {value}")
-                               .format(name=field.name, bitWidth=field.bitWidth, type=field.type,
-                                       value=memberValue.name if isEnum else memberValue,
-                                       separator=':' if isEnum else ''))
+            result += ("\n{name:" + str(nameLen) + "}:{type}{separator}{bitWidth:<2} = {value}")
         result = result.replace("\n", "\n" + stringhelper.indent)
-        result = result + "\n}"
+        result += "\n}"
         return result
 
     # packs this bietfield into an integer
@@ -183,7 +180,7 @@ class BitField(Value):
                 storeValue = v.getPythonValue()
                 if field.type.hasNegativeValues():
                     storeValue = bithelper.zigZagEncode(storeValue)
-            value = value | (storeValue << shift)
+            value |= storeValue << shift
             shift = shift + field.bitWidth
         return value
 
@@ -209,7 +206,7 @@ class Null(Value):
         Value.__init__(self, types.NullType())
 
     def pretty(self):
-        return "<NULL>";
+        return "<NULL>"
 
     def getPythonValue(self):
         return None
@@ -219,9 +216,9 @@ class Null(Value):
 class Reference(Value):
     # a target of None is allowed - in that case (and only that case) target type may be set
     def __init__(self, targetValue, referenceBitWidth=32, targetType=None):
-        if targetValue != None and targetType != None:
+        if targetValue is not None and targetType is not None:
             raise Exception("cannot set target type for non-null reference")
-        if targetValue == None:
+        if targetValue is None:
             targetValue = Null()
         targetValue = getValue(targetValue)
         Value.__init__(self, types.ReferenceType(targetValue.type, referenceBitWidth=referenceBitWidth))
@@ -230,16 +227,16 @@ class Reference(Value):
     def pretty(self):
         return ("->" +
                 (self.targetValue.pretty().replace("\n", stringhelper.indent + "\n")
-                 if self.targetValue != None else
+                 if self.targetValue is not None else
                  "None"))
 
     def getPythonValue(self):
         return self.targetValue.getPythonValue()
 
     def pack(self, dataOffset=None):
-        if dataOffset == None:
+        if dataOffset is None:
             raise Exception("cannot pack reference without a data offset (is the reference not contained in a struct?)")
-        if self.targetValue.getPythonValue() == None:
+        if self.targetValue.getPythonValue() is None:
             return self.type.referenceType.pack(0), ""
         else:
             # add padding bytes until data offset is aligned with target type
@@ -268,7 +265,7 @@ class Array(Value):
 
     # will pack the elements
     def pack(self, dataOffset=None, elementOffsetsRelativeToElement=True):
-        if dataOffset == None:
+        if dataOffset is None:
             dataOffset = self.getImmediateDataSize()
         immediateData = []
         offsetedData = []
@@ -279,7 +276,7 @@ class Array(Value):
                                                  (immediateLen
                                                   if elementOffsetsRelativeToElement else
                                                   0))  # offset is relative to element
-                dataOffset = dataOffset + len(referred)
+                dataOffset += len(referred)
                 immediateData.append(immediate)
                 offsetedData.append(referred)
                 immediateLen += len(immediateData[-1])
@@ -296,7 +293,7 @@ class Array(Value):
         results = [v.pretty() if self.elementsAreValueObjects else str(v) for v in self.values]
         chars = 0
         i = 0
-        while ((chars <= maxChars or i < minResults) and i < len(results)):
+        while (chars <= maxChars or i < minResults) and i < len(results):
             chars += len(results[i])
             i += 1
         return "[" + ", ".join(results[:i]) + (",..." if i < len(results) else "") + "]"
@@ -307,22 +304,22 @@ class SimpleArray(Array):
     def __init__(self, elementType, values, fixedSize=None, byteAlignment=None):
         if isinstance(elementType, types.ReferenceType):
             raise Exception("simple arrays cannot store references")
-        if not fixedSize == None:
+        if fixedSize is not None:
             assert (len(values) <= fixedSize)
         self.fixedSize = fixedSize
         Array.__init__(self, types.SimpleArrayType(elementType, fixedSize, byteAlignment), values)
 
     def getImmediateDataSize(self):
         return (self.type.getElementType().getWidth()
-                * (len(self.values) if self.fixedSize == None else self.fixedSize))
+                * (len(self.values) if self.fixedSize is None else self.fixedSize))
 
     def pack(self, dataOffset=None):
         immediateData, offsetData = Array.pack(self, dataOffset)  # call super pack
-        if self.fixedSize != None:
+        if self.fixedSize is not None:
             # fill the data with zero bytes 
             immediateData = (immediateData
                              + "\x00" * (self.getImmediateDataSize() - len(immediateData)))
-        if dataOffset == None:
+        if dataOffset is None:
             return immediateData + offsetData, ""
         else:
             return immediateData, offsetData
@@ -379,7 +376,7 @@ class ReferenceArray(Array):
     def __init__(self, values, fixedSize=None, referenceBitWidth=32):
         if len(values) == 0:
             raise Exception("reference array values cannot be empty")
-        if not fixedSize == None:
+        if fixedSize is not None:
             assert (len(values) <= fixedSize)
         self.fixedSize = fixedSize
         # turn all values into references
@@ -398,16 +395,16 @@ class ReferenceArray(Array):
 
     def getImmediateDataSize(self):
         return (self.type.getElementType().getWidth()
-                * (len(self.values) if self.fixedSize == None else self.fixedSize))
+                * (len(self.values) if self.fixedSize is None else self.fixedSize))
 
     def pack(self, dataOffset=None):
-        if dataOffset == None:
+        if dataOffset is None:
             dataOffset = self.getImmediateDataSize()
             combine = True
         else:
             combine = False
         immediateData, offsetData = Array.pack(self, dataOffset, elementOffsetsRelativeToElement=False)
-        if self.fixedSize != None:
+        if self.fixedSize is not None:
             # fill the data with zero bytes 
             immediateData = (immediateData
                              + "\x00" * (self.getImmediateDataSize() - len(immediateData)))
@@ -501,8 +498,8 @@ class Struct(Value, constants.AddConstantFunctions):
     # will add a reference to the given value to this struct
     # if the type is defined, and value=None allows adding a typed reference even if the value is Null
     def addReference(self, name, value, referenceBitWidth=32, targetType=None):
-        if targetType != None:
-            if value != None:
+        if targetType is not None:
+            if value is not None:
                 raise Exception("can only override reference type for Null Value")
             return self.addImmediate(name, Reference(None, referenceBitWidth, targetType=targetType))
         return self.addImmediate(name, Reference(value, referenceBitWidth))
@@ -573,8 +570,8 @@ class Struct(Value, constants.AddConstantFunctions):
     def addBlob(self, name, blob, byteAlignment=4, referenceBitWidth=32):
         self.addReference(name,
                           Blob(_dictGet(blob, name), byteAlignment=4),
-                          referenceBitWidth=referenceBitWidth);
-        return self;
+                          referenceBitWidth=referenceBitWidth)
+        return self
 
     # will add a string to the struct. if 'aString' is a dictionary d, will add d[name]
     # will store the byte offset in the C struct, using the name <name>+ByteOffset
@@ -587,14 +584,14 @@ class Struct(Value, constants.AddConstantFunctions):
     # if the string is not stored as an immediate value.
     # returns self
     def addString(self, name, string, fixedWidth=None, omitTerminal=False, referenceBitWidth=32):
-        string = _dictGet(string, name);
-        if string == None:
-            if fixedWidth != None:
+        string = _dictGet(string, name)
+        if string is None:
+            if fixedWidth is not None:
                 raise Exception("cannot add fixed with string as a null-reference")
             self.addImmediate(name, Reference(None, targetType=types.SimpleArrayType(types.CharType())))
         else:
             self.addReference(name, String(string, fixedWidth, omitTerminal), referenceBitWidth)
-        return self;
+        return self
 
     # will add an array of values to the struct.
     # if value is a dictionary, will add value[name]
@@ -636,17 +633,14 @@ class Struct(Value, constants.AddConstantFunctions):
         for i, memberValue in enumerate(self.values):
             offset, type, name = self.type.getMember(i)
             typeName = repr(type)
-            result = result + (("\n{pos:02}: {type} " + (" " * (length - len(typeName))) + "{name}=")
-                               .format(pos=offset, type=typeName, name=name, value=memberValue.pretty())
-                               + memberValue.pretty())
+            result += ("\n{pos:02}: {type} " + (" " * (length - len(typeName))) + "{name}=")
         result = result.replace("\n", "\n" + stringhelper.indent)
-        result = result + "\n}"
+        result += "\n}"
         return result
 
     def pack(self, dataOffset=None):
-        currentMember = ""
         if True:  # try:
-            if dataOffset == None:
+            if dataOffset is None:
                 dataOffset = self.getImmediateDataSize()
                 combine = True
             else:
@@ -654,13 +648,12 @@ class Struct(Value, constants.AddConstantFunctions):
             immediateData = ""
             offsetedData = ""
             for i, value in enumerate(self.values):
-                currentMember = self.getType().names[i]
                 immediate, referred = value.pack(dataOffset)
-                dataOffset = dataOffset + len(referred)
+                dataOffset += len(referred)
                 immediateData = immediateData + immediate
                 offsetedData = offsetedData + referred
             padding = self.getImmediateDataSize() - len(immediateData)
-            immediateData = immediateData + "\x00" * padding
+            immediateData += "\x00" * padding
             if combine:
                 return immediateData + offsetedData, ""
             else:
@@ -680,7 +673,7 @@ class Struct(Value, constants.AddConstantFunctions):
             immediate, referred = value.pack(dataOffset)
             names.append(self.type.getMember(i)[2])
             sizes.append(len(immediate) + len(referred))
-            dataOffset = dataOffset + len(referred)
+            dataOffset += len(referred)
         total = "total:"
         maxNameLen = max([len(total)] + [len(name) for name in names]) + 1
         numLen = len(str(sum(sizes)))
@@ -710,7 +703,7 @@ class BitFieldArray(Value):
     # the fieldValues may be a dictionary of field-value, or a sequence of values in the same order as the fields
     # the values themselves may be (positive) integers, or Blob objects
     def add(self, fieldValues=None, **fieldValuesDict):
-        if fieldValues == None:
+        if fieldValues is None:
             fieldValues = fieldValuesDict
         fields = self.type.getFields()
         if len(fields) != len(fieldValues):
@@ -725,7 +718,7 @@ class BitFieldArray(Value):
                 if not isinstance(value, numbers.Integral):
                     raise Exception(
                         "attempting to add " + repr(value) + ", but bitFieldArray only supports int or blobValue.")
-                if not (value >= 0 and value < 2 ** 31):
+                if not (0 <= value < 2 ** 31):
                     raise Exception(
                         "bitFieldArray only supports values between 0 (incl) and 2^31 (excl), received " + repr(value))
                 entry.append((False, value))
@@ -784,13 +777,13 @@ class BitFieldArray(Value):
             if len(rows[0]) + 1 + len(strings[0]) > maxColumnWidth:
                 if i < numEntries:
                     rows = [row + ".." for row in rows]
-                break;
+                break
             # add row
             delim = ("" if (i == numEntries - 1) else ",")
             rows = [rows[j] + s + delim for j, s in enumerate(strings)]
         rows = [row + "]" for row in rows]
         result += "\n" + "\n".join(rows)
-        result = result + "\n}"
+        result += "\n}"
         return result
 
     def getImmediateDataSize(self):

@@ -1,8 +1,8 @@
 import collections
 
 import stringhelper
+import types
 import values
-
 
 # namedstruct library
 # allows creation of binary files like you would build a json file, by just adding
@@ -172,9 +172,7 @@ import values
 #
 # - constructor methods
 
-
-
-# ############# PUBLIC FUNCTIONS ############################################################
+# PUBLIC FUNCTIONS ############################################################
 # returns the c++ header file text that defines the given struct(s), including all nested
 # structs. If a namespace is set, the c++ code will be defined inside that namespace.
 # If the 'define' is set, will use use that for the IF/IFNDEFs, otherwise till use the name of the
@@ -184,15 +182,19 @@ import values
 # constantPools may be a single constantPool or a sequence of constant Pools
 def generateHeader(valuesOrEnumTypes, constantPools=None, namespace=None, define=None, headText="",
                    indent=stringhelper.indent):
-    import constants # Avoid circular dependencies
-    
+    import constants  # Avoid circular dependencies
+
     # massage arguments
-    if isinstance(valuesOrEnumTypes, values.Value): valuesOrEnumTypes = [valuesOrEnumTypes]
-    if constantPools == None: constantPools = []
-    if isinstance(constantPools, constants.ConstantPool): constantPools = [constantPools]
-    if define == None: define = "__" + valuesOrEnumTypes[0].getType().getName().upper() + "__"
+    if isinstance(valuesOrEnumTypes, values.Value):
+        valuesOrEnumTypes = [valuesOrEnumTypes]
+    if constantPools is None:
+        constantPools = []
+    if isinstance(constantPools, constants.ConstantPool):
+        constantPools = [constantPools]
+    if define is None:
+        define = "__" + valuesOrEnumTypes[0].getType().getName().upper() + "__"
     namespaceString = ""
-    if namespace != None:
+    if namespace is not None:
         stringhelper.assertIsValidIdentifier(namespace)
         namespaceString = "namespace %s {\n" % namespace
 
@@ -217,7 +219,7 @@ def generateHeader(valuesOrEnumTypes, constantPools=None, namespace=None, define
 #include "bits.h"
 
 {namespaceString}""".format(define=define, namespaceString=namespaceString)
-    currentIndent = "" if namespace == None else indent
+    currentIndent = "" if namespace is None else indent
 
     # put constants
     constant = ""
@@ -236,9 +238,10 @@ def generateHeader(valuesOrEnumTypes, constantPools=None, namespace=None, define
 
     # put forward declaration of all types - todo put only necessary ones...
     forwardDeclarations = ""
-    for type in allTypes.values():
-        forwardDeclaration = type.getForwardDeclaration()
-        if forwardDeclaration == None: continue
+    for cppType in allTypes.values():
+        forwardDeclaration = cppType.getForwardDeclaration()
+        if forwardDeclaration is None:
+            continue
         forwardDeclarations = forwardDeclarations + currentIndent + forwardDeclaration + "\n"
     if len(forwardDeclarations) >= 0:
         result = (result
@@ -248,9 +251,10 @@ def generateHeader(valuesOrEnumTypes, constantPools=None, namespace=None, define
 
     # put declaration of all types
     typeDeclarations = ""
-    for name, type in allTypes.items():
-        declaration = type.getDeclaration(indent)
-        if declaration == None: continue
+    for name, cppType in allTypes.items():
+        declaration = cppType.getDeclaration(indent)
+        if declaration is None:
+            continue
         typeDeclarations = (typeDeclarations
                             + "\n" + currentIndent
                             + (declaration

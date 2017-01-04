@@ -1,19 +1,19 @@
 import collections
 import re
 
-import values
-
 
 # an object that has the add constant functions - they all get dispatched to "addConstant"
 class AddConstantFunctions(object):
     def addConstant(self, name, value):  # should return self
         raise Exception("not implemented")
 
-    def addInt32Constant(self, name, value): return self.addConstant(name,
-                                                                     values.Int(values._dictGet(value, name), False,
-                                                                                32))
+    def addInt32Constant(self, name, value):
+        import values  # to avoid circular dependencies
+        return self.addConstant(name, values.Int(values._dictGet(value, name), False, 32))
 
-    def addCharConstant(self, name, value): return self.addConstant(name, values.Char(values._dictGet(value, name)))
+    def addCharConstant(self, name, value):
+        import values  # to avoid circular dependencies
+        return self.addConstant(name, values.Char(values._dictGet(value, name)))
 
 
 # an object that can have constants associated with it
@@ -22,6 +22,8 @@ class ConstantPool(AddConstantFunctions):
         self.constants = collections.OrderedDict()  # name -> value
 
     def addConstant(self, name, value):
+        import values  # to avoid circular dependencies
+        
         value = values.getValue(values._dictGet(value, name))
         value.getLiteral()  # check whether there is a literal method
         self.constants[name] = value

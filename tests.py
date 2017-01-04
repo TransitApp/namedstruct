@@ -58,10 +58,10 @@ def generateTests(quiet=False):
 
     blob = []
     for i in range(1000):
-        number = i;
-        while (number > 0):
+        number = i
+        while number > 0:
             blob.append(number & 1)
-            number = number >> 1;
+            number >>= 1
     add(Struct("testStruct8")
         .addBlob("longBlob", blob))
 
@@ -104,7 +104,7 @@ def generateTests(quiet=False):
 
     add(Struct("testStruct16")
         .add("fixedString", String("yet another", 30))
-        .addImmediate("nonFixedString", "fooBar"));
+        .addImmediate("nonFixedString", "fooBar"))
 
     add(Struct("testStruct17")
         .addArray("structArray", [Struct("elementStruct0").add("name", "John").addInt8("x", 7).finalize(),
@@ -212,13 +212,13 @@ def generateTests(quiet=False):
         .add("terminal", 567))
 
     add(Struct("testStruct35")
-        .addArray("dates", [BitField("timeBitField", 32)
+        .addArray("dates", [BitField("timeBitField")
                   .add("year", 2011, 11)
                   .add("month", 11, 4)
                   .add("day", 11, 5)
                   .add("hour", 9, 5)
                   .add("minute", 23, 6),
-                            BitField("timeBitField", 32)
+                   BitField("timeBitField")
                   .add("year", 2012, 11)
                   .add("month", 12, 4)
                   .add("day", 12, 5)
