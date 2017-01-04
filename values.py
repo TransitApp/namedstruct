@@ -216,6 +216,8 @@ class Null(Value):
 class Reference(Value):
     # a target of None is allowed - in that case (and only that case) target type may be set
     def __init__(self, targetValue, referenceBitWidth=32, targetType=None):
+        """:type targetValue: any"""
+        
         if targetValue is not None and targetType is not None:
             raise Exception("cannot set target type for non-null reference")
         if targetValue is None:
