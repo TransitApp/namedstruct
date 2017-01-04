@@ -452,7 +452,7 @@ class EnumValue(Value):
 # struct value
 # structs don't have fixed width unless they are closed/finished
 class Struct(Value, constants.AddConstantFunctions):
-    def __init__(self, name, alignment=32):
+    def __init__(self, name):
         structType = types.StructType(name)
         Value.__init__(self, structType)
         self.values = []  # list of member values
@@ -568,10 +568,8 @@ class Struct(Value, constants.AddConstantFunctions):
     # Blobs will be word aligned by default, but that can be overriden.
     # Blobs are stored little endian, i.e. [0,1,0,0,1,0,0,1]=0x92=146.
     # returns self
-    def addBlob(self, name, blob, byteAlignment=4, referenceBitWidth=32):
-        self.addReference(name,
-                          Blob(dictGet(blob, name), byteAlignment=4),
-                          referenceBitWidth=referenceBitWidth)
+    def addBlob(self, name, blob, referenceBitWidth=32):
+        self.addReference(name, Blob(dictGet(blob, name)), referenceBitWidth=referenceBitWidth)
         return self
 
     # will add a string to the struct. if 'aString' is a dictionary d, will add d[name]
