@@ -9,7 +9,7 @@ class AddConstantFunctions(object):
 
     def addInt32Constant(self, name, value):
         import values  # to avoid circular dependencies
-        return self.addConstant(name, values.Int(values.dictGet(value, name), False, 32))
+        return self.addConstant(name, values.Int(values.dictGet(value, name)))
 
     def addCharConstant(self, name, value):
         import values  # to avoid circular dependencies

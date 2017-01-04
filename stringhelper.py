@@ -95,6 +95,7 @@ def getColumnFormat(values, maxLength=None, default=1, rightAlign=True):
 
 # uses get column format to build a column of values, returns a string for every inputted value
 def getColumn(values, maxLength=None, rightAlign=True):
-    if len(values) == 0: return []
+    if len(values) == 0:
+        return []
     columnFormat = getColumnFormat(values, maxLength=maxLength, rightAlign=rightAlign)
     return [columnFormat % str(v) for v in values]

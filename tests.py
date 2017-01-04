@@ -306,13 +306,13 @@ def generateTests(quiet=False):
 
     add(Struct("testStruct44")
         .add("bitfield",
-             BitField("BitField44", 32)
+             BitField("BitField44")
              .addSigned("field", -2147483648, 32))
         )
 
     add(Struct("testStruct45")
         .add("bitfield",
-             BitField("BitField45", 32)
+             BitField("BitField45")
              .addEnum("gender", GenderEnum.OTHER)
              .addEnum("party", PartyEnum.GREEN)
              .addEnum("yes", YesEnum.yes)
@@ -323,7 +323,7 @@ def generateTests(quiet=False):
 
     add(Struct("testStruct46")
         .add("bitfield",
-             BitField("BitField46", 32)
+             BitField("BitField46")
              .add("a", 0, 3)
              .addSigned("b", 0, 4)
              .add("c", 0, 4)
@@ -333,7 +333,7 @@ def generateTests(quiet=False):
 
     add(Struct("testStruct47")
         .add("bitfield",
-             BitField("BitField47", 32)
+             BitField("BitField47")
              .addSigned("number", 0, 32)
              )
         )

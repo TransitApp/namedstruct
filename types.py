@@ -34,6 +34,9 @@ def _typeEqualAssert(typeA, typeB, *keys):
 
 class Type(object):
     # the type name that is used in C to represent this type
+    def __init__(self):
+        self.name = None
+
     def getName(self):
         return self.name
 
@@ -117,8 +120,12 @@ class PrimitiveType(Type):
 
     def isImmediate(self):
         return True
+    
+    def getFormatChar(self):
+        return "" # overwritten by subclass
 
-    def pack(self, aPythonValue):  # returns a string representing the primitive
+    def pack(self, aPythonValue):  
+        # returns a string representing the primitive
         f = "<"  # format prefix defining little endian, standard encoding
         formatChar = self.getFormatChar()
         return struct.pack(f + formatChar, aPythonValue)
@@ -137,7 +144,8 @@ class PrimitiveType(Type):
 class IntType(PrimitiveType):
     formats = {8: 'b', 16: 'h', 32: 'i', 64: 'q'}  # map from bit width -> format chars
 
-    def __init__(self, unsigned=False, bitWidth=32):
+    def __init__(self, unsigned, bitWidth):
+        super(IntType, self).__init__()
         assert bitWidth in IntType.formats
         self.name = ('u' if unsigned else '') + "int" + str(bitWidth) + "_t"
         self.unsigned = unsigned
@@ -207,6 +215,7 @@ class BitFieldType(Type):
     Field = collections.namedtuple("FieldType", ["name", "type", "bitWidth"])
 
     def __init__(self, name, totalBitWidth=32):
+        super(BitFieldType, self).__init__()
         self.dataType = IntType(True, totalBitWidth)
         self.name = name
         self.fields = {}  # field name -> member index
@@ -349,7 +358,7 @@ class BitFieldType(Type):
 # a type that represents null/none values
 class NullType(Type):
     def __init__(self):
-        pass
+        super(NullType, self).__init__()
 
     def getName(self):
         return "void"
@@ -370,6 +379,7 @@ class ReferenceType(Type):
     formats = {8: True, 16: False, 32: False}  # bit width -> isUnsigned?
 
     def __init__(self, targetType, referenceBitWidth=32):
+        super(ReferenceType, self).__init__()
         self.referenceBitWidth = referenceBitWidth
         self.targetType = targetType
         self.referenceType = IntType(ReferenceType.formats[referenceBitWidth], referenceBitWidth)
@@ -421,6 +431,7 @@ class ReferenceType(Type):
 
 class ArrayType(Type):
     def __init__(self, elementType):
+        super(ArrayType, self).__init__()
         if elementType.isMutable():
             raise Exception("cannot use type " + elementType + " for elements in array - it's not finalized")
         if elementType.getWidth() is None:  # may raise exception if width is undefined
@@ -564,6 +575,7 @@ class EnumType(Type):
     # The underlying type should be a primitive type (integer, char)
     # the mapping should either be a dictionary (names will be sorted), or a list of name->value pairs
     def __init__(self, name, enumType, mapping):
+        super(EnumType, self).__init__()
         assert isinstance(enumType, PrimitiveType)
         self.enumType = enumType
         self.name = enumType.name
@@ -664,6 +676,7 @@ class EnumType(Type):
 
 class StructType(Type, constants.AddConstantFunctions):
     def __init__(self, name):
+        super(StructType, self).__init__()
         self.constantPool = constants.ConstantPool()
         self.mutable = True
         self.name = name
@@ -840,6 +853,7 @@ class StructType(Type, constants.AddConstantFunctions):
 # a special struct type, an array of bitfield values
 class BitFieldArrayType(Type):
     def __init__(self, name, fields):
+        super(BitFieldArrayType, self).__init__()
         self.name = name
         if len(fields) == 0:
             raise Exception("BitFieldArrayType needs at least one field")
