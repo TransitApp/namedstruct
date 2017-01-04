@@ -812,4 +812,10 @@ class BitFieldArray(Value):
 
 # if value is a dictionary, returns value[name], otherwise returns value
 def dictGet(value, name):
-    return value[name] if isinstance(value, dict) else value
+    if isinstance(value, dict):
+        # Help pycharm figuring it out it's a dict
+        """:type :dict"""
+        dictionnary = value
+        return dictionnary[name] 
+    else:
+        return value
