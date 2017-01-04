@@ -599,6 +599,9 @@ class EnumType(Type):
 
     def __getitem__(self, key):
         return self.values[key]
+    
+    def __getattr__(self, item):
+        return self.values[item]
 
     def getEnumType(self):
         return self.enumType
