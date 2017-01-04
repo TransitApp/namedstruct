@@ -499,7 +499,6 @@ class ReferenceArrayType(ArrayType):
         self.fixedSize = fixedSize
         arraySuffix = "Ref" + ReferenceArrayType.infix[referenceBitWidth] + "Array"
         if fixedSize is not None:
-            fixedSize + 1  # check int
             arraySuffix = "Size" + str(fixedSize) + arraySuffix
         self.name = elementType.getName() + arraySuffix
         self.uniqueName = elementType.getUniqueName() + arraySuffix
@@ -697,20 +696,21 @@ class StructType(Type, constants.AddConstantFunctions):
         return padding
 
     # returns how many padding bytes were added before adding the member
-    def addMember(self, name, type):
+    def addMember(self, name, memberType):
         if not self.mutable:
             raise Exception("cannot add member to finalized struct " + self.name)
         # check validity
-        if name in self.members: raise Exception("name %s already in struct %s" % (name, self.name))
-        assert (isinstance(type, Type))
+        if name in self.members:
+            raise Exception("name %s already in struct %s" % (name, self.name))
+        assert (isinstance(memberType, Type))
         stringhelper.assertIsValidIdentifier(name)
-        padding = self.addPadding(type.getAlignment())
+        padding = self.addPadding(memberType.getAlignment())
         # actually add member
         self.members[name] = len(self.offsets)
         self.names.append(name)
         self.offsets.append(self.getCurrentWidth())
-        self.types.append(type)
-        self.alignment = max(self.alignment, type.getAlignment())
+        self.types.append(memberType)
+        self.alignment = max(self.alignment, memberType.getAlignment())
         return padding
 
     # returns the byte offset,type,name for the member at the given index
@@ -726,7 +726,8 @@ class StructType(Type, constants.AddConstantFunctions):
         return len(self.members) > 0 and all(t.hasEqualMethod() for t in self.types)
 
     def getCurrentWidth(self):
-        if len(self.offsets) == 0: return 0
+        if len(self.offsets) == 0:
+            return 0
         return self.offsets[-1] + self.types[-1].getWidth()
 
     # this will finalize the definition of this struct. The Struct may never grow in size

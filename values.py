@@ -113,8 +113,8 @@ class Char(PrimitiveValue):
     def __init__(self, char):
         assert (isinstance(char, basestring))
         assert (len(char) == 1)
-        type = types.CharType()
-        PrimitiveValue.__init__(self, type, char)
+        charType = types.CharType()
+        PrimitiveValue.__init__(self, charType, char)
 
     def getLiteral(self):
         return stringhelper.literalFromString(self.getPythonValue(), quote="'")
@@ -123,7 +123,7 @@ class Char(PrimitiveValue):
 # an integer that acts as a bit field
 class BitField(Value):
     def __init__(self, name, bitWidth=32):
-        self.type = types.BitFieldType(name, bitWidth)
+        super(BitField, self).__init__(types.BitFieldType(name, bitWidth))
         self.values = []
 
     def add(self, name, value, bitWidth=1):
@@ -146,8 +146,9 @@ class BitField(Value):
         self.type.addEnum(name, enumValue.getType())
         self.values.append(enumValue)
         return self
-
-    def hasFixedWidth(self):
+    
+    @staticmethod
+    def hasFixedWidth():
         return True
 
     def getPythonValue(self):
@@ -159,8 +160,7 @@ class BitField(Value):
     def pretty(self):
         result = "bitField{bitWidth}({name}){{".format(bitWidth=self.type.bitWidth, name=self.type.name)
         nameLen = max(len(field.name) for field in self.type.fieldArray) if len(self.values) > 0 else 0
-        for i, memberValue in enumerate(self.values):
-            field = self.type.fieldArray[i]
+        for _, _ in enumerate(self.values):
             result += ("\n{name:" + str(nameLen) + "}:{type}{separator}{bitWidth:<2} = {value}")
         result = result.replace("\n", "\n" + stringhelper.indent)
         result += "\n}"
@@ -420,13 +420,14 @@ class ReservedValue(SimpleArray):
 
 
 class EnumValue(Value):
-    def __init__(self, type, name):
-        assert isinstance(type, types.EnumType)
-        assert name in type.mapping
-        self.type = type
+    def __init__(self, enumType, name):
+        assert isinstance(enumType, types.EnumType)
+        assert name in enumType.mapping
+        super(EnumValue, self).__init__(enumType)
         self.name = name
-
-    def hasFixedWidth(self):
+        
+    @staticmethod
+    def hasFixedWidth():
         return True
 
     def getPythonValue(self):  # will return a python value, basically what was used to create this
@@ -457,9 +458,9 @@ class Struct(Value, constants.AddConstantFunctions):
         self.values = []  # list of member values
 
     def __repr__(self):
-        type = self.type
-        numMembers = len(type.members)
-        return ("<Struct:" + str(type.name)
+        structType = self.type
+        numMembers = len(structType.members)
+        return ("<Struct:" + str(structType.name)
                 + " with " + str(numMembers)
                 + " member%s>" % ("" if numMembers == 1 else "s"))
 
@@ -488,7 +489,7 @@ class Struct(Value, constants.AddConstantFunctions):
     # if the value is a Value, will add the value with the type
     # otherwise it will attempt to turn the value into a value using "getValue"
     def add(self, name, value):
-        value = getValue(_dictGet(value, name))
+        value = getValue(dictGet(value, name))
         if value.getType().isImmediate():
             self.addImmediate(name, value)
         else:
@@ -525,7 +526,7 @@ class Struct(Value, constants.AddConstantFunctions):
 
     # will add the value
     def addImmediate(self, name, value):
-        value = getValue(_dictGet(value, name))
+        value = getValue(dictGet(value, name))
         padBytes = self.getType().addMember(name, value.getType())
         self.values.extend([Padding()] * padBytes)
         self.values.append(value)
@@ -535,31 +536,31 @@ class Struct(Value, constants.AddConstantFunctions):
     # if the name exists, will throw an error
     # returns self
     def addInt8(self, name, anInt):
-        return self.add(name, Int(_dictGet(anInt, name), False, 8))
+        return self.add(name, Int(dictGet(anInt, name), False, 8))
 
     def addInt16(self, name, anInt):
-        return self.add(name, Int(_dictGet(anInt, name), False, 16))
+        return self.add(name, Int(dictGet(anInt, name), False, 16))
 
     def addInt32(self, name, anInt):
-        return self.add(name, Int(_dictGet(anInt, name), False, 32))
+        return self.add(name, Int(dictGet(anInt, name), False, 32))
 
     def addInt64(self, name, anInt):
-        return self.add(name, Int(_dictGet(anInt, name), False, 64))
+        return self.add(name, Int(dictGet(anInt, name), False, 64))
 
     def addUInt8(self, name, anInt):
-        return self.add(name, Int(_dictGet(anInt, name), True, 8))
+        return self.add(name, Int(dictGet(anInt, name), True, 8))
 
     def addUInt16(self, name, anInt):
-        return self.add(name, Int(_dictGet(anInt, name), True, 16))
+        return self.add(name, Int(dictGet(anInt, name), True, 16))
 
     def addUInt32(self, name, anInt):
-        return self.add(name, Int(_dictGet(anInt, name), True, 32))
+        return self.add(name, Int(dictGet(anInt, name), True, 32))
 
     def addUInt64(self, name, anInt):
-        return self.add(name, Int(_dictGet(anInt, name), True, 64))
+        return self.add(name, Int(dictGet(anInt, name), True, 64))
 
     def addChar(self, name, aChar):
-        return self.add(name, Char(_dictGet(aChar, name)))
+        return self.add(name, Char(dictGet(aChar, name)))
 
     # will reference add a binary blob, either an array of 0/1 values, or a string, to the struct.
     # if 'aBlob' is a dictionary d, will add d[name] will store the the byte offset in the C struct,
@@ -569,7 +570,7 @@ class Struct(Value, constants.AddConstantFunctions):
     # returns self
     def addBlob(self, name, blob, byteAlignment=4, referenceBitWidth=32):
         self.addReference(name,
-                          Blob(_dictGet(blob, name), byteAlignment=4),
+                          Blob(dictGet(blob, name), byteAlignment=4),
                           referenceBitWidth=referenceBitWidth)
         return self
 
@@ -584,7 +585,7 @@ class Struct(Value, constants.AddConstantFunctions):
     # if the string is not stored as an immediate value.
     # returns self
     def addString(self, name, string, fixedWidth=None, omitTerminal=False, referenceBitWidth=32):
-        string = _dictGet(string, name)
+        string = dictGet(string, name)
         if string is None:
             if fixedWidth is not None:
                 raise Exception("cannot add fixed with string as a null-reference")
@@ -598,7 +599,7 @@ class Struct(Value, constants.AddConstantFunctions):
     # if the value is an array of Value objects, will add an array with the val
     # otherwise it will attempt to turn the value into a value using "getValue"
     def addArray(self, name, arrayValues, fixedSize=None):
-        arrayValues = _dictGet(arrayValues, name)
+        arrayValues = dictGet(arrayValues, name)
         value = getArrayValue(arrayValues, fixedSize)
         if value.getType().isImmediate():
             self.addImmediate(name, value)
@@ -611,7 +612,7 @@ class Struct(Value, constants.AddConstantFunctions):
     # if the value is an array of Value objects, will add an array with the val
     # otherwise it will attempt to turn the value into a value using "getValue"
     def addReferenceArray(self, name, arrayValues, fixedSize=None, referenceBitWidth=32):
-        arrayValues = _dictGet(arrayValues, name)
+        arrayValues = dictGet(arrayValues, name)
         arrayValues = [getValue(v) for v in arrayValues]
         array = ReferenceArray(arrayValues, fixedSize, referenceBitWidth)
         if array.getType().isImmediate():
@@ -631,8 +632,8 @@ class Struct(Value, constants.AddConstantFunctions):
         result = "struct " + self.type.getName() + " {"
         length = max([0] + [len(repr(self.type.getMember(i)[1])) for i in range(len(self.values))])
         for i, memberValue in enumerate(self.values):
-            offset, type, name = self.type.getMember(i)
-            typeName = repr(type)
+            offset, memberType, name = self.type.getMember(i)
+            typeName = repr(memberType)
             result += ("\n{pos:02}: {type} " + (" " * (length - len(typeName))) + "{name}=")
         result = result.replace("\n", "\n" + stringhelper.indent)
         result += "\n}"
@@ -690,7 +691,7 @@ class Struct(Value, constants.AddConstantFunctions):
 # an array of bitfield values, with variable number of bits
 class BitFieldArray(Value):
     def __init__(self, name, *fields):
-        self.type = types.BitFieldArrayType(name, fields)
+        super(BitFieldArray, self).__init__(types.BitFieldArrayType(name, fields))
         self.entries = []  # each entry is an array of (isBlob,value)
 
     def __repr__(self):
@@ -730,8 +731,9 @@ class BitFieldArray(Value):
         for entry in entries:
             self.add(entry)
         return self
-
-    def hasFixedWidth(self):
+    
+    @staticmethod
+    def hasFixedWidth():
         return False
 
     def getPythonValue(self):
@@ -811,5 +813,5 @@ class BitFieldArray(Value):
 
 
 # if value is a dictionary, returns value[name], otherwise returns value
-def _dictGet(value, name):
+def dictGet(value, name):
     return value[name] if isinstance(value, dict) else value
