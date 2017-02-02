@@ -183,7 +183,7 @@ import types
 # structs may be a value or a sequence of structs/bitfield values/enum type
 # constantPools may be a single constantPool or a sequence of constant Pools
 def generateHeader(valuesOrEnumTypes, constantPools=None, namespace=None, define=None, headText="",
-                   indent=stringhelper.indent):
+                   indent=stringhelper.indent, includeSetters=False):
     import constants  # Avoid circular dependencies
     
     # massage arguments
@@ -254,7 +254,7 @@ def generateHeader(valuesOrEnumTypes, constantPools=None, namespace=None, define
     # put declaration of all types
     typeDeclarations = ""
     for name, cppType in allTypes.items():
-        declaration = cppType.getDeclaration(indent)
+        declaration = cppType.getDeclaration(indent=indent, includeSetters=includeSetters)
         if declaration is None:
             continue
         typeDeclarations = (typeDeclarations
@@ -262,6 +262,7 @@ def generateHeader(valuesOrEnumTypes, constantPools=None, namespace=None, define
                             + (declaration
                                + "\n").replace("\n", "\n" + currentIndent)
                             + "\n" + currentIndent)
+        
     if len(typeDeclarations) >= 0:
         result = (result + currentIndent + "\n" + currentIndent + "\n"
                   + currentIndent + "// *** type declarations *********************"

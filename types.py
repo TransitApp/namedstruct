@@ -56,7 +56,7 @@ class Type(object):
         yield self
     
     # returns a c++ declaration of the type. If the type does not need to be declared (e.g. int32_t), returns None
-    def getDeclaration(self, indent=stringhelper.indent):
+    def getDeclaration(self, indent=stringhelper.indent, includeSetters=False):
         return None
     
     def getForwardDeclaration(self):
@@ -284,7 +284,7 @@ class BitFieldType(Type):
     def getForwardDeclaration(self):
         return "struct " + self.getName() + ";"
     
-    def getDeclaration(self, indent=stringhelper.indent):
+    def getDeclaration(self, indent=stringhelper.indent, includeSetters=False):
         result = "typedef struct __attribute__((packed)) %s {\n" % self.getName()
         # add member
         result = result + indent + self.dataType.getName() + " bits;\n"
@@ -320,9 +320,7 @@ class BitFieldType(Type):
                     "); " +
                     "}}\n").format(**formatDict)
                 storageType = self.dataType.getName()
-                intType = (
-                    IntType(unsigned=False,
-                            bitWidth=self.dataType.bitWidth).getName() + " ") if useZigZag else storageType
+                intType = (IntType(unsigned=False, bitWidth=self.dataType.bitWidth).getName() + " ") if useZigZag else storageType
                 setters += ("{indent}\n"
                             "{indent}inline void set{fieldName}({fieldType} v) {{\n"
                             "{indent}{indent}{intType} intValue = static_cast<{intType}>(v);\n"
@@ -336,7 +334,9 @@ class BitFieldType(Type):
                         bitfieldBitsMinus1=self.dataType.bitWidth - 1,
                         **formatDict)
                 shift = shift + fieldWidth
-            result += setters
+                
+            if includeSetters:
+                result += setters
             mask = "0x%X" % ((1 << self.getNumUsedBits()) - 1)
             result += """{indent}
 {indent}inline bool operator==(const {name} other) const {{
@@ -544,7 +544,7 @@ class ReferenceArrayType(ArrayType):
     def getForwardDeclaration(self):
         return "struct " + self.getName() + ";"
     
-    def getDeclaration(self, indent=stringhelper.indent):
+    def getDeclaration(self, indent=stringhelper.indent, includeSetters=False):
         result = "typedef struct __attribute__((packed)) %s {\n" % self.getName()
         # add member
         result = (result + indent + self.elementType.referenceType.getName() + " elementByteOffsets"
@@ -612,7 +612,7 @@ class EnumType(Type):
     def getContainedTypes(self):
         return [self.getEnumType()]
     
-    def getDeclaration(self, indent=stringhelper.indent):
+    def getDeclaration(self, indent=stringhelper.indent, includeSetters=False):
         header = "enum class {uniqueName} : {valueType} {{".format(uniqueName=self.uniqueName, valueType=self.name)
         members = [
             "{indent}{name} = {value}".format(indent=indent, name=name, value=value.getLiteral())
@@ -795,7 +795,7 @@ class StructType(Type, constants.AddConstantFunctions):
     def getForwardDeclaration(self):
         return "struct " + self.getName() + ";"
     
-    def getDeclaration(self, indent=stringhelper.indent):
+    def getDeclaration(self, indent=stringhelper.indent, includeSetters=False):
         result = "typedef struct __attribute__((packed)) %s {\n" % self.getName()
         
         # add constants
@@ -876,7 +876,7 @@ class BitFieldArrayType(Type):
     def getForwardDeclaration(self):
         return "struct " + self.getName() + ";"
     
-    def getDeclaration(self, indent=stringhelper.indent):
+    def getDeclaration(self, indent=stringhelper.indent, includeSetters=False):
         result = "typedef struct __attribute__((packed)) %s {\n" % self.getName()
         
         # add members
