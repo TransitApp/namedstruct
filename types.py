@@ -131,9 +131,13 @@ class PrimitiveType(Type):
         return ""  # overwritten by subclass
     
     def pack(self, aPythonValue):
+        if isinstance(aPythonValue, str):
+            aPythonValue = bytes(aPythonValue, 'utf-8')
+        elif not isinstance(aPythonValue, int):
+            aPythonValue = bytes(aPythonValue)
         # returns a string representing the primitive
-        f = "<"  # format prefix defining little endian, standard encoding
-        formatChar = self.getFormatChar()
+        f = b"<"  # format prefix defining little endian, standard encoding
+        formatChar = bytes(self.getFormatChar(), 'utf-8')
         return struct.pack(f + formatChar, aPythonValue)
 
     def hasEqualMethod(self):

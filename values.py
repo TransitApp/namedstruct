@@ -293,8 +293,8 @@ class Array(Value):
             else:
                 immediateData.append(self.type.getElementType().pack(value))
                 immediateLen += len(immediateData[-1])
-        immediateString = b"".join(bytes(immediateData))
-        offsetedString = b"".join(bytes(offsetedData))
+        immediateString = b"".join(immediateData)
+        offsetedString = b"".join(offsetedData)
         return immediateString, offsetedString
     
     def pretty(self):
@@ -418,7 +418,7 @@ class ReferenceArray(Array):
         if self.fixedSize is not None:
             # fill the data with zero bytes 
             immediateData = (immediateData
-                             + "\x00" * (self.getImmediateDataSize() - len(immediateData)))
+                             + b"\x00" * (self.getImmediateDataSize() - len(immediateData)))
         if combine:
             return immediateData + offsetData, ""
         else:
@@ -659,6 +659,8 @@ class Struct(Value, constants.AddConstantFunctions):
             offsetedData = b""
             for i, value in enumerate(self.values):
                 immediate, referred = value.pack(dataOffset)
+                if isinstance(referred, str):
+                    referred = bytes(referred, 'utf-8')
                 dataOffset += len(referred)
                 immediateData = immediateData + immediate
                 offsetedData = offsetedData + referred
@@ -813,7 +815,7 @@ class BitFieldArray(Value):
                 if isBlob:
                     b = value.getPythonValue()
                     blob.extend(b)
-                    blob.extend((fieldLengths[i] - len(b)) * array.array('B', ['0']))
+                    blob.extend((fieldLengths[i] - len(b)) * array.array('B', [0]))
                 else:
                     blob.extend(array.array('B', bithelper.toBits(value, fieldLengths[i])))
         data = namedstruct.pack(Blob(blob), addPadding=False)
