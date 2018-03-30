@@ -1,11 +1,17 @@
+from __future__ import absolute_import
+from __future__ import division
+from builtins import str
+from past.builtins import basestring
+from past.utils import old_div
+from builtins import object
 import collections
 import numbers
 import struct
 
-import bithelper
-import constants
-import stringhelper
-import values
+from . import bithelper
+from . import constants
+from . import stringhelper
+from . import values
 
 
 # given two types, merges them, but if one of them is NullType, returns the other type
@@ -129,7 +135,7 @@ class PrimitiveType(Type):
         f = "<"  # format prefix defining little endian, standard encoding
         formatChar = self.getFormatChar()
         return struct.pack(f + formatChar, aPythonValue)
-    
+
     def hasEqualMethod(self):
         return True
     
@@ -164,7 +170,7 @@ class IntType(PrimitiveType):
         self.pack(aValue)
     
     def getWidth(self):
-        return self.bitWidth / 8
+        return old_div(self.bitWidth, 8)
     
     def merge(self, other):
         _typeEqualAssert(self, other, "name")
@@ -201,7 +207,7 @@ class CharType(IntType):
     def assertValueHasType(self, aValue):
         if not isinstance(aValue, basestring) or len(aValue) != 1:
             raise Exception(str(aValue) + " is not a char")
-        self.pack(aValue)
+        self.pack(bytes(aValue, 'utf-8'))
     
     def makeValue(self, aChar):
         return values.Char(aChar)
@@ -297,7 +303,7 @@ class BitFieldType(Type):
         setters = ""
         if len(self.fieldArray) > 0:
             fieldNameWidth = max(len(field.name) + len(getTypeName(field)) for field in self.fieldArray)
-            maskChars = (max(field.bitWidth for field in self.fieldArray) + 3) / 4
+            maskChars = old_div((max(field.bitWidth for field in self.fieldArray) + 3), 4)
             for field in self.fieldArray:
                 fieldName = field.name
                 fieldWidth = field.bitWidth
@@ -591,7 +597,12 @@ class EnumType(Type):
         for name, value in mapping:
             stringhelper.assertIsValidIdentifier(name)
             namedstructValue = enumType.makeValue(value)
-            self._hasNegativeValues = self._hasNegativeValues or (value < 0)
+            # for py3 compatibility
+            if isinstance(value, int):
+                is_negative_value = value < 0
+            else:
+                is_negative_value = False
+            self._hasNegativeValues = self._hasNegativeValues or is_negative_value
             self.mapping[name] = namedstructValue
             enumValue = values.EnumValue(self, name)  # the enum value constructor requres the self.mapping value
             self.values[name] = enumValue
@@ -616,7 +627,7 @@ class EnumType(Type):
         header = "enum class {uniqueName} : {valueType} {{".format(uniqueName=self.uniqueName, valueType=self.name)
         members = [
             "{indent}{name} = {value}".format(indent=indent, name=name, value=value.getLiteral())
-            for name, value in self.mapping.items()
+            for name, value in list(self.mapping.items())
             ]
         return header + "\n" + ",\n".join(members) + "\n};"
     
@@ -669,7 +680,7 @@ class EnumType(Type):
     
     # returns the set of values used by theis enum
     def getPythonValues(self):
-        return set(v.getPythonValue() for v in self.mapping.values())
+        return set(v.getPythonValue() for v in list(self.mapping.values()))
     
     def hasNegativeValues(self):
         return self._hasNegativeValues

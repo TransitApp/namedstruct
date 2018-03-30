@@ -1,3 +1,4 @@
+from builtins import str
 import re
 
 indent = " " * 4
@@ -6,7 +7,7 @@ indent = " " * 4
 # ********** packing *********************************************************
 # takes a string and returns it as a null terminated string of chars
 def stringToChars(string):
-    return string.encode("utf-8") + "\0"
+    return string + "\0"
 
 
 # ********** creating types/headers *****************************************
