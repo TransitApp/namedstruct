@@ -5,9 +5,14 @@ indent = " " * 4
 
 
 # ********** packing *********************************************************
-# takes a string and returns it as a null terminated string of chars
+# takes a string and returns it as a null terminated string of bytes char
 def stringToChars(string):
-    return string + "\0"
+    bytesString = bytes(string, 'utf-8') + b"\0"
+    arrayOfIndividualBytes = []
+    for charValue in bytesString:
+        arrayOfIndividualBytes.append(bytes([charValue]))
+
+    return arrayOfIndividualBytes
 
 
 # ********** creating types/headers *****************************************

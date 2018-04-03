@@ -268,6 +268,7 @@ class Array(Value):
                 arrayType.getElementType().merge(v.getType())
             else:
                 arrayType.getElementType().assertValueHasType(v)
+
         self.values = values
     
     def getPythonValue(self):
@@ -370,7 +371,7 @@ class Blob(SimpleArray):
             for bitArray in bitArrays:
                 blob.extend(bitArray)
         blob = array.array('B', blob)  # turn blob into an actual binary array - if it's not a string
-        SimpleArray.__init__(self, types.CharType(), str(bithelper.packBitsToChars(blob)), fixedSize, byteAlignment)
+        SimpleArray.__init__(self, types.CharType(), bithelper.packBitsToChars(blob), fixedSize, byteAlignment)
         self.blob = blob
     
     def pretty(self):

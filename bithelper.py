@@ -56,7 +56,9 @@ def packBitsToChars(bits):
         numBits += 1
     if numBits > 0:
         result.append(c)
-    return struct.pack("<" + str(len(result)) + "B", *result)
+    bitsToChar = struct.pack("<" + str(len(result)) + "B", *bytes(result))
+    arrayOfIndividualBytes = [bytes([charValue]) for charValue in bitsToChar]
+    return arrayOfIndividualBytes
 
 
 def zigZagEncode(v):

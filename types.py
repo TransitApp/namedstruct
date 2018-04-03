@@ -131,13 +131,9 @@ class PrimitiveType(Type):
         return ""  # overwritten by subclass
     
     def pack(self, aPythonValue):
-        if isinstance(aPythonValue, str):
-            aPythonValue = bytes(aPythonValue, 'utf-8')
-        elif not isinstance(aPythonValue, int):
-            aPythonValue = bytes(aPythonValue)
         # returns a string representing the primitive
-        f = b"<"  # format prefix defining little endian, standard encoding
-        formatChar = bytes(self.getFormatChar(), 'utf-8')
+        f = "<"  # format prefix defining little endian, standard encoding
+        formatChar = self.getFormatChar()
         return struct.pack(f + formatChar, aPythonValue)
 
     def hasEqualMethod(self):
@@ -209,9 +205,9 @@ class CharType(IntType):
         return "s"
     
     def assertValueHasType(self, aValue):
-        if not isinstance(aValue, basestring) or len(aValue) != 1:
-            raise Exception(str(aValue) + " is not a char")
-        self.pack(bytes(aValue, 'utf-8'))
+        if not isinstance(aValue, bytes):
+            raise Exception(str(aValue) + " is not a bytes")
+        self.pack(aValue)
     
     def makeValue(self, aChar):
         return values.Char(aChar)
