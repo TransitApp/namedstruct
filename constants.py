@@ -27,7 +27,7 @@ class ConstantPool(AddConstantFunctions):
         from . import values  # to avoid circular dependencies
         
         value = values.getValue(values.dictGet(value, name))
-        value.getLiteral()  # check whether there is a literal method
+        # value.getLiteral()  # check whether there is a literal method
         self.constants[name] = value
         return self
     

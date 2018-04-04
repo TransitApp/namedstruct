@@ -31,7 +31,7 @@ def escapeChar(char):
         return "\\'"
     if r == '"':
         return '\\"'
-    return r
+    return bytes(r, 'utf-8')
 
 
 def literalFromString(string, quote='"'):

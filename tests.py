@@ -20,8 +20,7 @@ from .values import *
 class NamedstructTestCase(unittest.TestCase):
     def test_namedstruct(self):
         genDir = os.path.dirname(
-            os.path.realpath(__file__)) + \
-                 '/../../../UpdateStaticData/submodules/bgtfs-lib/bgtfsLib/localTestFiles/'
+            os.path.realpath(__file__)) + '/src/localTestFiles/'
         sys.setrecursionlimit(10000000)
 
         os.system("echo .")
@@ -42,7 +41,7 @@ class NamedstructTestCase(unittest.TestCase):
 
 def generateTests(quiet=False):
     testStructs = []
-    
+
     def add(s):
         if not quiet:
             print("**************************************")
@@ -52,7 +51,7 @@ def generateTests(quiet=False):
             print("packed:")
             print(repr(pack(s)))
         testStructs.append(s)
-    
+
     add(Struct("testStruct0"))
 
     add(Struct("testStruct1")
@@ -72,7 +71,7 @@ def generateTests(quiet=False):
 
     add(Struct("testStruct5")
         .addString("unicodeString", u'Soci\xe9t\xe9 de transport de Montr\xe9al'))
-    
+
     add(Struct("testStruct6")
         .addBlob("myBlob", [0, 1, 0, 0, 1, 0, 0, 1]))
 
@@ -373,7 +372,7 @@ def generateTests(quiet=False):
              .addSigned("number", 0, 32)
              )
         )
-    
+
     pool = generateConstantPool()
     
     if not quiet:

@@ -119,9 +119,8 @@ class Padding(Int):
 # a single char
 class Char(PrimitiveValue):
     def __init__(self, char):
-        assert (isinstance(char, basestring))
-        assert (len(char) == 1)
         charType = types.CharType()
+        char = bytes(char, 'utf-8')
         PrimitiveValue.__init__(self, charType, char)
     
     def getLiteral(self):
