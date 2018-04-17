@@ -3,8 +3,8 @@ from __future__ import absolute_import
 from __future__ import division
 from builtins import str
 from builtins import range
-from past.builtins import basestring
-from past.utils import old_div
+# from past.builtins import basestring
+# from past.utils import old_div
 from builtins import object
 import array
 import numbers
@@ -27,7 +27,7 @@ def getValue(value):
         return value
     elif isinstance(value, numbers.Integral):
         return Int(value)
-    elif isinstance(value, basestring):
+    elif isinstance(value, str):
         return String(value)
     elif value is None:
         return Null()
@@ -75,7 +75,7 @@ class Value(object):
         raise Exception("cannot get literal for " + repr(self))
     
     def getImmediateDataSize(self):
-        return self.type.getWidth()
+        return int(self.type.getWidth())
 
 
 # primitve value
@@ -249,7 +249,7 @@ class Reference(Value):
             return self.type.referenceType.pack(0), b""
         else:
             # add padding bytes until data offset is aligned with target type
-            padding = ((-dataOffset) % self.type.targetType.getAlignment())
+            padding = int(((-dataOffset) % self.type.targetType.getAlignment()))
             packedReference = self.type.referenceType.pack(dataOffset + padding)
             packedData = b"\x00" * padding + namedstruct.pack(self.targetValue, addPadding=False)
             return packedReference, packedData
@@ -321,8 +321,8 @@ class SimpleArray(Array):
         Array.__init__(self, types.SimpleArrayType(elementType, fixedSize, byteAlignment), values)
     
     def getImmediateDataSize(self):
-        return (self.type.getElementType().getWidth()
-                * (len(self.values) if self.fixedSize is None else self.fixedSize))
+        return int((self.type.getElementType().getWidth()
+                * (len(self.values) if self.fixedSize is None else self.fixedSize)))
     
     def pack(self, dataOffset=None, elementOffsetsRelativeToElement=True):
         immediateData, offsetData = Array.pack(self, dataOffset)  # call super pack
@@ -364,7 +364,7 @@ class Blob(SimpleArray):
     def __init__(self, blob, fixedSize=None, byteAlignment=4):
         global blobStrings
         blobStrings.append(blob)
-        if isinstance(blob, basestring):
+        if isinstance(blob, str):
             bitArrays = [bithelper.toBits(ord(c), numBits=8) for c in blob]
             blob = []
             for bitArray in bitArrays:
@@ -405,8 +405,8 @@ class ReferenceArray(Array):
         Array.__init__(self, types.ReferenceArrayType(elementType, fixedSize, referenceBitWidth), referenceValues)
     
     def getImmediateDataSize(self):
-        return (self.type.getElementType().getWidth()
-                * (len(self.values) if self.fixedSize is None else self.fixedSize))
+        return int((self.type.getElementType().getWidth()
+                * (len(self.values) if self.fixedSize is None else self.fixedSize)))
     
     def pack(self, dataOffset=None, elementOffsetsRelativeToElement=True):
         if dataOffset is None:
@@ -451,7 +451,7 @@ class EnumValue(Value):
         raise self.type.values[self.name].getLiteral()
     
     def getImmediateDataSize(self):
-        return self.type.getEnumType().getWidth()
+        return int(self.type.getEnumType().getWidth())
     
     def pack(self, dataOffset=None):
         return self.type.mapping[self.name].pack(dataOffset=dataOffset)
@@ -493,7 +493,7 @@ class Struct(Value, constants.AddConstantFunctions):
         return constantPool.get(key).getPythonValue()
     
     def getImmediateDataSize(self):
-        return sum(v.getImmediateDataSize() for v in self.values)
+        return int(sum(v.getImmediateDataSize() for v in self.values))
     
     # will add a new value to the struct.
     # if value is a dictionary, will add value[name]
@@ -801,7 +801,7 @@ class BitFieldArray(Value):
     
     def getImmediateDataSize(self):
         fieldLengths = self.getFieldLengths()
-        return (len(fieldLengths) + 2) * 2 + old_div((sum(fieldLengths) * len(self.entries) + 7), 8)
+        return int((len(fieldLengths) + 2) * 2 + (sum(fieldLengths) * len(self.entries) + 7) / 8)
     
     def pack(self, dataOffset=None):
         fieldLengths = self.getFieldLengths()

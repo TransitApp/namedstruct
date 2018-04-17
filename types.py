@@ -1,8 +1,6 @@
-from __future__ import absolute_import
-from __future__ import division
+from __future__ import absolute_import, division
 from builtins import str
-from past.builtins import basestring
-from past.utils import old_div
+# from past.utils import old_div
 from builtins import object
 import collections
 import numbers
@@ -170,7 +168,7 @@ class IntType(PrimitiveType):
         self.pack(aValue)
     
     def getWidth(self):
-        return old_div(self.bitWidth, 8)
+        return self.bitWidth / 8
     
     def merge(self, other):
         _typeEqualAssert(self, other, "name")

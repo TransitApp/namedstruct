@@ -1,6 +1,6 @@
 from builtins import str
 from builtins import range
-from past.builtins import basestring
+# from past.builtins import basestring
 import math
 import struct
 import unittest
@@ -37,7 +37,7 @@ def toBits(number, numBits=None):
 # takes an array of bits, and returns them as a string (i.e. char array)
 # this operation should be indemptotent, i.e. a string will be returned as is
 def packBitsToChars(bits):
-    if isinstance(bits, basestring):
+    if isinstance(bits, str):
         for c in bits:
             if ord(c) < 0 or ord(c) > 255:
                 raise Exception("blob strings myst be made of 8-bit chars, but found " + repr(c))
