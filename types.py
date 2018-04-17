@@ -1,6 +1,5 @@
 from __future__ import absolute_import, division
 from builtins import str
-# from past.utils import old_div
 from builtins import object
 import collections
 import numbers
@@ -301,7 +300,7 @@ class BitFieldType(Type):
         setters = ""
         if len(self.fieldArray) > 0:
             fieldNameWidth = max(len(field.name) + len(getTypeName(field)) for field in self.fieldArray)
-            maskChars = old_div((max(field.bitWidth for field in self.fieldArray) + 3), 4)
+            maskChars = (max(field.bitWidth for field in self.fieldArray) + 3) / 4
             for field in self.fieldArray:
                 fieldName = field.name
                 fieldWidth = field.bitWidth
