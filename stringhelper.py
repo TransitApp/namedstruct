@@ -35,7 +35,8 @@ def escapeChar(char):
 
 
 def literalFromString(string, quote='"'):
-    return quote + "".join(escapeChar(c) for c in string) + quote
+    quote = bytes(quote, 'utf-8')
+    return quote + b"".join(escapeChar(c) for c in string) + quote
 
 
 # checks whether a given name is a valid identifier in c++. Throws an exception if it isn't.

@@ -63,7 +63,7 @@ def packBitsToChars(bits):
 
 def zigZagEncode(v):
     if v < 0:
-        return ~v * 2 + 1
+        return ~int(v) * 2 + 1
     else:
         return 2 * v
 

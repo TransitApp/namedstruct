@@ -105,7 +105,7 @@ class Int(PrimitiveValue):
         PrimitiveValue.__init__(self, valueType, intValue)
     
     def getLiteral(self):
-        return str(self.getPythonValue())
+        return bytes(self.getPythonValue())
 
 
 # padding byte
@@ -178,13 +178,13 @@ class BitField(Value):
         for i, v in enumerate(self.values):
             field = self.type.fieldArray[i]
             if field.type == 'u':
-                storeValue = v
+                storeValue = int(v)
             elif field.type == 'i':
-                storeValue = bithelper.zigZagEncode(v)
+                storeValue = int(bithelper.zigZagEncode(v))
             else:
-                storeValue = v.getPythonValue()
+                storeValue = int(v.getPythonValue())
                 if field.type.hasNegativeValues():
-                    storeValue = bithelper.zigZagEncode(storeValue)
+                    storeValue = int(bithelper.zigZagEncode(storeValue))
             value |= storeValue << shift
             shift = shift + field.bitWidth
         return value

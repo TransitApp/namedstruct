@@ -317,7 +317,7 @@ class BitFieldType(Type):
                 result += (
                     "{indent}/** {bitWidth:2} bit{s} */ inline {fieldType} get{fieldName}() {space}const {{" +
                     " auto v = " + (
-                        "(bits >> {shift:2}) & {mask}" if fieldWidth > 0 else ' ' * (16 + maskChars) + "0") + "; "
+                        "(bits >> {shift:2}) & {mask}" if fieldWidth > 0 else ' ' * (16 + int(maskChars)) + "0") + "; "
                                                                                                               " return static_cast<{fieldType}>(" +
                     ("(v >> 1) ^ (-(v & 1))" if useZigZag else "v") +
                     "); " +
@@ -804,36 +804,40 @@ class StructType(Type, constants.AddConstantFunctions):
         return "struct " + self.getName() + ";"
     
     def getDeclaration(self, indent=stringhelper.indent, includeSetters=False):
-        result = "typedef struct __attribute__((packed)) %s {\n" % self.getName()
+        indent = bytes(indent, encoding='utf-8')
+        result = b"typedef struct __attribute__((packed)) %s {\n" % bytes(self.getName(), encoding='utf-8')
         
         # add constants
         if self.constantPool.getNumConstants() > 0:
             result = (result
                       + indent
-                      + self.constantPool.getConstantDeclarations().replace("\n", "\n" + indent) + "\n")
+                      + self.constantPool.getConstantDeclarations().replace(b"\n", b"\n" + indent) + b"\n")
         
         # add members
         typeWidth = max([0] + [len(memberType.getName()) for memberType in self.types])
         for i, memberName in enumerate(self.names):
             memberType = self.types[i]
-            memberName = memberName + memberType.getNameSuffix()
-            space = " " * (typeWidth + 1 - len(memberType.getName()))
-            comment = ""  # comment comes from struct or from type
+            memberNameSuffix = memberType.getNameSuffix()
+            memberTypeName = bytes(memberType.getName(), encoding='utf-8')
+            memberName = bytes(memberName + memberNameSuffix, encoding='utf-8')
+            memberTypeDesclarationNameSuffix = bytes(memberType.getDeclarationNameSuffix(), encoding='utf-8')
+            space = bytes(" " * (typeWidth + 1 - len(memberTypeName)), encoding='utf-8')
+            comment = b""  # comment comes from struct or from type
             result = (result
                       + indent
-                      + memberType.getName() + space
-                      + memberName + memberType.getDeclarationNameSuffix() + ";"
+                      + memberTypeName + space
+                      + memberName + memberTypeDesclarationNameSuffix + b";"
                       + comment
-                      + "\n")
+                      + b"\n")
         
         # add accessor functions
-        functions = ""
+        functions = b""
         for i, memberName in enumerate(self.names):
             memberType = self.types[i]
-            function = memberType.getAccessorFunction(memberName, indent=stringhelper.indent)
-            if function is not None:
-                function = ("\n" + function + "\n").replace("\n", "\n" + indent)
-                functions += function
+            accessorFunction = memberType.getAccessorFunction(memberName, indent=stringhelper.indent)
+            if accessorFunction is not None:
+                accessorFunction = (b"\n" + bytes(accessorFunction, encoding='utf-8') + b"\n").replace(b"\n", b"\n" + indent)
+                functions += accessorFunction
         if len(functions) > 0:
             result = result + functions[:-len(indent)]
         
@@ -856,7 +860,7 @@ class StructType(Type, constants.AddConstantFunctions):
                                                    .format(name=n, suffix=self.types[i].getNameSuffix())
                                                    for i, n in enumerate(self.names))))
         # finish
-        result = result + "} " + self.getName() + ";"
+        result = result + b"} " + bytes(self.getName(), encoding='utf-8') + b";"
         return result
 
 

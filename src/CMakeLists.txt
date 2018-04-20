@@ -26,10 +26,11 @@ if(APPLE AND ${CMAKE_VERSION} VERSION_GREATER 3.8.2016 AND XCTest_FOUND)
 
     set_source_files_properties(${PROJECT_SOURCE_DIR}/localTestFiles PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
 
-    # add_custom_command(
-    #    OUTPUT ${PROJECT_SOURCE_DIR}/localTestFiles
-    #    COMMAND ${RESET_IOS_ENV} && pwd && ${PROJECT_SOURCE_DIR}/copy_test_if_not_up_to_date.sh
-    # )
+     add_custom_command(
+        OUTPUT ${PROJECT_SOURCE_DIR}/localTestFiles
+        WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+        COMMAND ${RESET_IOS_ENV} && pypy generate
+     )
 
     xctest_add_test(XCTest.namedstructTests namedstructTests)
     target_link_libraries(namedstructTests PUBLIC namedstruct)

@@ -36,17 +36,19 @@ class ConstantPool(AddConstantFunctions):
         return self.constants[name]
     
     def getConstantDeclarations(self):
-        result = ""
+        result = b""
         typeWidth = max([len(v.getType().getName()) for v in list(self.constants.values())] + [0])
         for name, value in list(self.constants.items()):
-            typeName = value.getType().getName()
-            space = " " * (typeWidth - len(typeName))
+            name = bytes(name, encoding='utf-8')
+            declarationNameSuffix = bytes(value.getType().getDeclarationNameSuffix(), encoding='utf-8')
+            typeName = bytes(value.getType().getName(), encoding='utf-8')
+            space = bytes(" " * (typeWidth - len(typeName)), encoding='utf-8')
             literal = value.getLiteral()
             result = (result
-                      + "static constexpr " + typeName
-                      + " " + space
-                      + name + value.getType().getDeclarationNameSuffix()
-                      + " = " + literal + ";\n")
+                      + b"static constexpr " + typeName
+                      + b" " + space
+                      + name + declarationNameSuffix
+                      + b" = " + literal + b";\n")
         return result[:-1]
     
     def getNumConstants(self):

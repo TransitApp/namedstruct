@@ -253,27 +253,32 @@ def generateHeader(valuesOrEnumTypes, constantPools=None, namespace=None, define
                   + forwardDeclarations)
     
     # put declaration of all types
-    typeDeclarations = ""
+    typeDeclarations = b""
     for name, cppType in list(allTypes.items()):
         declaration = cppType.getDeclaration(indent=indent, includeSetters=includeSetters)
         if declaration is None:
             continue
+        elif not isinstance(declaration, bytes):
+            declaration = bytes(declaration, encoding='utf-8')
+        if not isinstance(currentIndent, bytes):
+            currentIndent = bytes(currentIndent, encoding='utf-8')
         typeDeclarations = (typeDeclarations
-                            + "\n" + currentIndent
+                            + b"\n" + currentIndent
                             + (declaration
-                               + "\n").replace("\n", "\n" + currentIndent)
-                            + "\n" + currentIndent)
-        
+                               + b"\n").replace(b"\n", b"\n" + currentIndent)
+                            + b"\n" + currentIndent)
+
+    result = bytes(result, encoding='utf-8')
     if len(typeDeclarations) >= 0:
-        result = (result + currentIndent + "\n" + currentIndent + "\n"
-                  + currentIndent + "// *** type declarations *********************"
+        result = (result + currentIndent + b"\n" + currentIndent + b"\n"
+                  + currentIndent + b"// *** type declarations *********************"
                   + typeDeclarations)
         
         # finish header
     result = (result
-              + "\n"
-              + ("" if not namespace else "}\n")
-              + "#endif /* defined(%s) */\n" % define)
+              + b"\n"
+              + (b"" if not namespace else b"}\n")
+              + b"#endif /* defined(%s) */\n" % bytes(define, encoding='utf-8'))
     return result
 
 
