@@ -105,7 +105,7 @@ class Int(PrimitiveValue):
         PrimitiveValue.__init__(self, valueType, intValue)
     
     def getLiteral(self):
-        return bytes(self.getPythonValue())
+        return str(self.getPythonValue())
 
 
 # padding byte

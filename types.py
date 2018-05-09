@@ -293,10 +293,10 @@ class BitFieldType(Type):
         result = result + indent + self.dataType.getName() + " bits;\n"
         # add accessor functions
         shift = 0
-        
+
         def getTypeName(field):
             return "int" if field.type in {"i", "u"} else field.type.getUniqueName()
-        
+
         setters = ""
         if len(self.fieldArray) > 0:
             fieldNameWidth = max(len(field.name) + len(getTypeName(field)) for field in self.fieldArray)
@@ -804,39 +804,39 @@ class StructType(Type, constants.AddConstantFunctions):
         return "struct " + self.getName() + ";"
     
     def getDeclaration(self, indent=stringhelper.indent, includeSetters=False):
-        indent = bytes(indent, encoding='utf-8')
-        result = b"typedef struct __attribute__((packed)) %s {\n" % bytes(self.getName(), encoding='utf-8')
+        indent = indent
+        result = "typedef struct __attribute__((packed)) %s {\n" % self.getName()
         
         # add constants
         if self.constantPool.getNumConstants() > 0:
             result = (result
                       + indent
-                      + self.constantPool.getConstantDeclarations().replace(b"\n", b"\n" + indent) + b"\n")
+                      + self.constantPool.getConstantDeclarations().replace("\n", "\n" + indent) + "\n")
         
         # add members
         typeWidth = max([0] + [len(memberType.getName()) for memberType in self.types])
         for i, memberName in enumerate(self.names):
             memberType = self.types[i]
             memberNameSuffix = memberType.getNameSuffix()
-            memberTypeName = bytes(memberType.getName(), encoding='utf-8')
-            memberName = bytes(memberName + memberNameSuffix, encoding='utf-8')
-            memberTypeDesclarationNameSuffix = bytes(memberType.getDeclarationNameSuffix(), encoding='utf-8')
-            space = bytes(" " * (typeWidth + 1 - len(memberTypeName)), encoding='utf-8')
-            comment = b""  # comment comes from struct or from type
+            memberTypeName = memberType.getName()
+            memberName = memberName + memberNameSuffix
+            memberTypeDesclarationNameSuffix = memberType.getDeclarationNameSuffix()
+            space = " " * (typeWidth + 1 - len(memberTypeName))
+            comment = ""  # comment comes from struct or from type
             result = (result
                       + indent
                       + memberTypeName + space
-                      + memberName + memberTypeDesclarationNameSuffix + b";"
+                      + memberName + memberTypeDesclarationNameSuffix + ";"
                       + comment
-                      + b"\n")
+                      + "\n")
         
         # add accessor functions
-        functions = b""
+        functions = ""
         for i, memberName in enumerate(self.names):
             memberType = self.types[i]
             accessorFunction = memberType.getAccessorFunction(memberName, indent=stringhelper.indent)
             if accessorFunction is not None:
-                accessorFunction = (b"\n" + bytes(accessorFunction, encoding='utf-8') + b"\n").replace(b"\n", b"\n" + indent)
+                accessorFunction = ("\n" + accessorFunction + "\n").replace("\n", "\n" + indent)
                 functions += accessorFunction
         if len(functions) > 0:
             result = result + functions[:-len(indent)]
@@ -860,7 +860,7 @@ class StructType(Type, constants.AddConstantFunctions):
                                                    .format(name=n, suffix=self.types[i].getNameSuffix())
                                                    for i, n in enumerate(self.names))))
         # finish
-        result = result + b"} " + bytes(self.getName(), encoding='utf-8') + b";"
+        result = result + "} " + self.getName() + ";"
         return result
 
 
