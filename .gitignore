@@ -61,3 +61,5 @@ target/
 .pytest_cache/
 .idea/
 *.bin
+
+src/namedStructTests.h
