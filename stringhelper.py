@@ -23,14 +23,15 @@ def capitalizeFirst(string):
 
 def escapeChar(char):
     r = repr(char)
-    # if r[0] == 'u':
-    #     r = r[1:]  # remove leading string char
-    # # assert (r[0] == '"' and r[-1] == '"') or (r[0] == "'" and r[-1] == "'")
-    # r = r[1:-1]
-    # if r == "'":
-    #     return "\\'"
-    # if r == '"':
-    #     return '\\"'
+    if not isinstance(char, int):
+        if r[0] == 'u':
+            r = r[1:]  # remove leading string char
+        assert (r[0] == '"' and r[-1] == '"') or (r[0] == "'" and r[-1] == "'")
+        r = r[1:-1]
+        if r == "'":
+            return "\\'"
+        if r == '"':
+            return '\\"'
     return r
 
 
