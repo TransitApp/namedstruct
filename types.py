@@ -594,7 +594,6 @@ class EnumType(Type):
         for name, value in mapping:
             stringhelper.assertIsValidIdentifier(name)
             namedstructValue = enumType.makeValue(value)
-            # for py3 compatibility
             if isinstance(value, int):
                 is_negative_value = value < 0
             else:
