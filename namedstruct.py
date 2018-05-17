@@ -2,9 +2,9 @@ from __future__ import absolute_import
 import collections
 
 from . import stringhelper
-from . import types
+from . import n_types
 from . import values
-from . import types
+from . import n_types
 
 
 # namedstruct library
@@ -204,7 +204,7 @@ def generateHeader(valuesOrEnumTypes, constantPools=None, namespace=None, define
     # get all types
     allTypes = []
     for s in valuesOrEnumTypes:
-        if isinstance(s, types.EnumType):
+        if isinstance(s, n_types.EnumType):
             allTypes.append(s)
         elif isinstance(s, (values.Struct, values.BitField, values.EnumValue)):
             allTypes.append(s.type)

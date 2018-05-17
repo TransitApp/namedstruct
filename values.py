@@ -11,7 +11,7 @@ from . import bithelper
 from . import constants
 from . import namedstruct
 from . import stringhelper
-from . import types
+from . import n_types
 
 
 # given a python object, will return a reasonable Value for it
@@ -41,8 +41,8 @@ def getArrayValue(arrayValues, fixedSize=None):
     arrayValues = [getValue(v) for v in arrayValues]
     t = arrayValues[0].getType()
     for v in arrayValues[1:]:
-        t = types.mergeTypes(t, v.getType())
-    if isinstance(t, types.ReferenceType):
+        t = n_types.mergeTypes(t, v.getType())
+    if isinstance(t, n_types.ReferenceType):
         raise Exception("can't build arrays out of references")
     if t.isImmediate():  # elements are immediate - just build simple array
         return SimpleArray(t, arrayValues, fixedSize)
@@ -100,7 +100,7 @@ class PrimitiveValue(Value):
 # integer value
 class Int(PrimitiveValue):
     def __init__(self, intValue, unsigned=False, bitWidth=32):
-        valueType = types.IntType(unsigned, bitWidth)
+        valueType = n_types.IntType(unsigned, bitWidth)
         valueType.assertValueHasType(intValue)
         PrimitiveValue.__init__(self, valueType, intValue)
     
@@ -117,7 +117,7 @@ class Padding(Int):
 # a single char
 class Char(PrimitiveValue):
     def __init__(self, char):
-        charType = types.CharType()
+        charType = n_types.CharType()
         char = bytes(char, 'utf-8')
         PrimitiveValue.__init__(self, charType, char)
     
@@ -128,7 +128,7 @@ class Char(PrimitiveValue):
 # an integer that acts as a bit field
 class BitField(Value):
     def __init__(self, name, bitWidth=32):
-        super(BitField, self).__init__(types.BitFieldType(name, bitWidth))
+        super(BitField, self).__init__(n_types.BitFieldType(name, bitWidth))
         self.values = []
     
     def add(self, name, value, bitWidth=1):
@@ -208,7 +208,7 @@ class BitField(Value):
 
 class Null(Value):
     def __init__(self):
-        Value.__init__(self, types.NullType())
+        Value.__init__(self, n_types.NullType())
     
     def pretty(self):
         return "<NULL>"
@@ -228,7 +228,7 @@ class Reference(Value):
         if targetValue is None:
             targetValue = Null()
         targetValue = getValue(targetValue)
-        Value.__init__(self, types.ReferenceType(targetValue.type, referenceBitWidth=referenceBitWidth))
+        Value.__init__(self, n_types.ReferenceType(targetValue.type, referenceBitWidth=referenceBitWidth))
         self.targetValue = targetValue
     
     def pretty(self):
@@ -310,13 +310,13 @@ class Array(Value):
 # c array - either variable length, or fixed length
 class SimpleArray(Array):
     def __init__(self, elementType, values, fixedSize=None, byteAlignment=None):
-        if isinstance(elementType, types.ReferenceType):
+        if isinstance(elementType, n_types.ReferenceType):
             raise Exception("simple arrays cannot store references")
         if fixedSize is not None:
             assert (len(values) <= fixedSize)
         self.fixedSize = fixedSize
 
-        Array.__init__(self, types.SimpleArrayType(elementType, fixedSize, byteAlignment), values)
+        Array.__init__(self, n_types.SimpleArrayType(elementType, fixedSize, byteAlignment), values)
     
     def getImmediateDataSize(self):
         return int((self.type.getElementType().getWidth()
@@ -340,7 +340,7 @@ class String(SimpleArray):
         chars = stringhelper.stringToChars(string)
         if omitTerminal:
             chars = chars[:-1]
-        SimpleArray.__init__(self, types.CharType(), chars, fixedSize)
+        SimpleArray.__init__(self, n_types.CharType(), chars, fixedSize)
         self.string = string
     
     def pretty(self):
@@ -368,7 +368,7 @@ class Blob(SimpleArray):
             for bitArray in bitArrays:
                 blob.extend(bitArray)
         blob = array.array('B', blob)  # turn blob into an actual binary array - if it's not a string
-        SimpleArray.__init__(self, types.CharType(), bithelper.packBitsToChars(blob), fixedSize, byteAlignment)
+        SimpleArray.__init__(self, n_types.CharType(), bithelper.packBitsToChars(blob), fixedSize, byteAlignment)
         self.blob = blob
     
     def pretty(self):
@@ -397,10 +397,10 @@ class ReferenceArray(Array):
                 raise Exception("reference array needs to be constructed from Value elements")
             if isinstance(v, Reference):
                 raise Exception("cannot store references in reference array")
-            elementType = types.mergeTypes(v.getType(), elementType)
+            elementType = n_types.mergeTypes(v.getType(), elementType)
             targetValues.append(v)
         referenceValues = [Reference(v, referenceBitWidth) for v in targetValues]
-        Array.__init__(self, types.ReferenceArrayType(elementType, fixedSize, referenceBitWidth), referenceValues)
+        Array.__init__(self, n_types.ReferenceArrayType(elementType, fixedSize, referenceBitWidth), referenceValues)
     
     def getImmediateDataSize(self):
         return int((self.type.getElementType().getWidth()
@@ -430,7 +430,7 @@ class ReservedValue(SimpleArray):
 
 class EnumValue(Value):
     def __init__(self, enumType, name):
-        assert isinstance(enumType, types.EnumType)
+        assert isinstance(enumType, n_types.EnumType)
         assert name in enumType.mapping
         super(EnumValue, self).__init__(enumType)
         self.name = name
@@ -462,7 +462,7 @@ class EnumValue(Value):
 # structs don't have fixed width unless they are closed/finished
 class Struct(Value, constants.AddConstantFunctions):
     def __init__(self, name):
-        structType = types.StructType(name)
+        structType = n_types.StructType(name)
         Value.__init__(self, structType)
         self.values = []  # list of member values
     
@@ -596,7 +596,7 @@ class Struct(Value, constants.AddConstantFunctions):
         if string is None:
             if fixedWidth is not None:
                 raise Exception("cannot add fixed with string as a null-reference")
-            self.addImmediate(name, Reference(None, targetType=types.SimpleArrayType(types.CharType())))
+            self.addImmediate(name, Reference(None, targetType=n_types.SimpleArrayType(n_types.CharType())))
         else:
             self.addReference(name, String(string, fixedWidth, omitTerminal), referenceBitWidth)
         return self
@@ -700,7 +700,7 @@ class Struct(Value, constants.AddConstantFunctions):
 # an array of bitfield values, with variable number of bits
 class BitFieldArray(Value):
     def __init__(self, name, *fields):
-        super(BitFieldArray, self).__init__(types.BitFieldArrayType(name, fields))
+        super(BitFieldArray, self).__init__(n_types.BitFieldArrayType(name, fields))
         self.entries = []  # each entry is an array of (isBlob,value)
     
     def __repr__(self):
@@ -805,7 +805,7 @@ class BitFieldArray(Value):
         fieldLengths = self.getFieldLengths()
         offset = (len(fieldLengths) + 2) * 16
         headerValues = [sum(fieldLengths)] + [offset + sum(fieldLengths[:i]) for i in range(len(fieldLengths) + 1)]
-        header = namedstruct.pack(SimpleArray(types.UINT16, headerValues), addPadding=False)
+        header = namedstruct.pack(SimpleArray(n_types.UINT16, headerValues), addPadding=False)
         # create data blob
         blob = array.array('B', [])
         for entry in self.entries:
