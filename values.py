@@ -122,7 +122,7 @@ class Char(PrimitiveValue):
         PrimitiveValue.__init__(self, charType, char)
     
     def getLiteral(self):
-        return stringhelper.literalFromString(self.getPythonValue(), quote="'")
+        return stringhelper.literalFromString(self.getPythonValue().decode('utf-8'), quote="'")
 
 
 # an integer that acts as a bit field
