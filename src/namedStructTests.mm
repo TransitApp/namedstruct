@@ -18,7 +18,7 @@
 #include <iostream>
 
 using namespace std;
-using namespace namedStructTests;
+using namespace namedStructTest;
 using namespace namedstruct;
 
 unsigned char* memblockFromPath(const string &path, ifstream::pos_type *sizeReturn = nullptr) {
