@@ -1,12 +1,18 @@
+from builtins import str
 import re
 
 indent = " " * 4
 
 
 # ********** packing *********************************************************
-# takes a string and returns it as a null terminated string of chars
+# takes a string and returns it as a null terminated string of bytes char
 def stringToChars(string):
-    return string.encode("utf-8") + "\0"
+    bytesString = bytes(string, 'utf-8') + b"\0"
+    arrayOfIndividualBytes = []
+    for charValue in bytesString:
+        arrayOfIndividualBytes.append(bytes([charValue]))
+
+    return arrayOfIndividualBytes
 
 
 # ********** creating types/headers *****************************************
@@ -17,18 +23,20 @@ def capitalizeFirst(string):
 
 def escapeChar(char):
     r = repr(char)
-    if r[0] == 'u':
-        r = r[1:]  # remove leading string char
-    assert (r[0] == '"' and r[-1] == '"') or (r[0] == "'" and r[-1] == "'")
-    r = r[1:-1]
-    if r == "'":
-        return "\\'"
-    if r == '"':
-        return '\\"'
+    if not isinstance(char, int):
+        if r[0] == 'u':
+            r = r[1:]  # remove leading string char
+        assert (r[0] == '"' and r[-1] == '"') or (r[0] == "'" and r[-1] == "'")
+        r = r[1:-1]
+        if r == "'":
+            return "\\'"
+        if r == '"':
+            return '\\"'
     return r
 
 
 def literalFromString(string, quote='"'):
+    quote = quote
     return quote + "".join(escapeChar(c) for c in string) + quote
 
 

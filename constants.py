@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+from builtins import object
 import collections
 import re
 
@@ -8,11 +10,11 @@ class AddConstantFunctions(object):
         raise Exception("not implemented")
     
     def addInt32Constant(self, name, value):
-        import values  # to avoid circular dependencies
+        from . import values  # to avoid circular dependencies
         return self.addConstant(name, values.Int(values.dictGet(value, name)))
     
     def addCharConstant(self, name, value):
-        import values  # to avoid circular dependencies
+        from . import values  # to avoid circular dependencies
         return self.addConstant(name, values.Char(values.dictGet(value, name)))
 
 
@@ -22,10 +24,10 @@ class ConstantPool(AddConstantFunctions):
         self.constants = collections.OrderedDict()  # name -> value
     
     def addConstant(self, name, value):
-        import values  # to avoid circular dependencies
+        from . import values  # to avoid circular dependencies
         
         value = values.getValue(values.dictGet(value, name))
-        value.getLiteral()  # check whether there is a literal method
+        # value.getLiteral()  # check whether there is a literal method
         self.constants[name] = value
         return self
     
@@ -35,15 +37,17 @@ class ConstantPool(AddConstantFunctions):
     
     def getConstantDeclarations(self):
         result = ""
-        typeWidth = max([len(v.getType().getName()) for v in self.constants.values()] + [0])
-        for name, value in self.constants.items():
+        typeWidth = max([len(v.getType().getName()) for v in list(self.constants.values())] + [0])
+        for name, value in list(self.constants.items()):
+            name = name
+            declarationNameSuffix = value.getType().getDeclarationNameSuffix()
             typeName = value.getType().getName()
             space = " " * (typeWidth - len(typeName))
             literal = value.getLiteral()
             result = (result
                       + "static constexpr " + typeName
                       + " " + space
-                      + name + value.getType().getDeclarationNameSuffix()
+                      + name + declarationNameSuffix
                       + " = " + literal + ";\n")
         return result[:-1]
     

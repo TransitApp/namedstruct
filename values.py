@@ -1,11 +1,17 @@
+from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+from builtins import str
+from builtins import range
+from builtins import object
 import array
 import numbers
 
-import bithelper
-import constants
-import namedstruct
-import stringhelper
-import types
+from . import bithelper
+from . import constants
+from . import namedstruct
+from . import stringhelper
+from . import n_types
 
 
 # given a python object, will return a reasonable Value for it
@@ -19,7 +25,7 @@ def getValue(value):
         return value
     elif isinstance(value, numbers.Integral):
         return Int(value)
-    elif isinstance(value, basestring):
+    elif isinstance(value, str):
         return String(value)
     elif value is None:
         return Null()
@@ -35,8 +41,8 @@ def getArrayValue(arrayValues, fixedSize=None):
     arrayValues = [getValue(v) for v in arrayValues]
     t = arrayValues[0].getType()
     for v in arrayValues[1:]:
-        t = types.mergeTypes(t, v.getType())
-    if isinstance(t, types.ReferenceType):
+        t = n_types.mergeTypes(t, v.getType())
+    if isinstance(t, n_types.ReferenceType):
         raise Exception("can't build arrays out of references")
     if t.isImmediate():  # elements are immediate - just build simple array
         return SimpleArray(t, arrayValues, fixedSize)
@@ -67,7 +73,7 @@ class Value(object):
         raise Exception("cannot get literal for " + repr(self))
     
     def getImmediateDataSize(self):
-        return self.type.getWidth()
+        return int(self.type.getWidth())
 
 
 # primitve value
@@ -88,13 +94,13 @@ class PrimitiveValue(Value):
         return repr(self.pythonValue)
     
     def pack(self, dataOffset=None):
-        return self.type.pack(self.pythonValue), ""
+        return self.type.pack(self.pythonValue), b""
 
 
 # integer value
 class Int(PrimitiveValue):
     def __init__(self, intValue, unsigned=False, bitWidth=32):
-        valueType = types.IntType(unsigned, bitWidth)
+        valueType = n_types.IntType(unsigned, bitWidth)
         valueType.assertValueHasType(intValue)
         PrimitiveValue.__init__(self, valueType, intValue)
     
@@ -111,19 +117,18 @@ class Padding(Int):
 # a single char
 class Char(PrimitiveValue):
     def __init__(self, char):
-        assert (isinstance(char, basestring))
-        assert (len(char) == 1)
-        charType = types.CharType()
+        charType = n_types.CharType()
+        char = bytes(char, 'utf-8')
         PrimitiveValue.__init__(self, charType, char)
     
     def getLiteral(self):
-        return stringhelper.literalFromString(self.getPythonValue(), quote="'")
+        return stringhelper.literalFromString(self.getPythonValue().decode('utf-8'), quote="'")
 
 
 # an integer that acts as a bit field
 class BitField(Value):
     def __init__(self, name, bitWidth=32):
-        super(BitField, self).__init__(types.BitFieldType(name, bitWidth))
+        super(BitField, self).__init__(n_types.BitFieldType(name, bitWidth))
         self.values = []
     
     def add(self, name, value, bitWidth=1):
@@ -173,13 +178,13 @@ class BitField(Value):
         for i, v in enumerate(self.values):
             field = self.type.fieldArray[i]
             if field.type == 'u':
-                storeValue = v
+                storeValue = int(v)
             elif field.type == 'i':
-                storeValue = bithelper.zigZagEncode(v)
+                storeValue = int(bithelper.zigZagEncode(v))
             else:
-                storeValue = v.getPythonValue()
+                storeValue = int(v.getPythonValue())
                 if field.type.hasNegativeValues():
-                    storeValue = bithelper.zigZagEncode(storeValue)
+                    storeValue = int(bithelper.zigZagEncode(storeValue))
             value |= storeValue << shift
             shift = shift + field.bitWidth
         return value
@@ -203,7 +208,7 @@ class BitField(Value):
 
 class Null(Value):
     def __init__(self):
-        Value.__init__(self, types.NullType())
+        Value.__init__(self, n_types.NullType())
     
     def pretty(self):
         return "<NULL>"
@@ -217,13 +222,13 @@ class Reference(Value):
     # a target of None is allowed - in that case (and only that case) target type may be set
     def __init__(self, targetValue, referenceBitWidth=32, targetType=None):
         """:type targetValue: any"""
-        
+
         if targetValue is not None and targetType is not None:
             raise Exception("cannot set target type for non-null reference")
         if targetValue is None:
             targetValue = Null()
         targetValue = getValue(targetValue)
-        Value.__init__(self, types.ReferenceType(targetValue.type, referenceBitWidth=referenceBitWidth))
+        Value.__init__(self, n_types.ReferenceType(targetValue.type, referenceBitWidth=referenceBitWidth))
         self.targetValue = targetValue
     
     def pretty(self):
@@ -239,12 +244,12 @@ class Reference(Value):
         if dataOffset is None:
             raise Exception("cannot pack reference without a data offset (is the reference not contained in a struct?)")
         if self.targetValue.getPythonValue() is None:
-            return self.type.referenceType.pack(0), ""
+            return self.type.referenceType.pack(0), b""
         else:
             # add padding bytes until data offset is aligned with target type
-            padding = ((-dataOffset) % self.type.targetType.getAlignment())
+            padding = int(((-dataOffset) % self.type.targetType.getAlignment()))
             packedReference = self.type.referenceType.pack(dataOffset + padding)
-            packedData = "\x00" * padding + namedstruct.pack(self.targetValue, addPadding=False)
+            packedData = b"\x00" * padding + namedstruct.pack(self.targetValue, addPadding=False)
             return packedReference, packedData
 
 
@@ -260,6 +265,7 @@ class Array(Value):
                 arrayType.getElementType().merge(v.getType())
             else:
                 arrayType.getElementType().assertValueHasType(v)
+
         self.values = values
     
     def getPythonValue(self):
@@ -285,8 +291,8 @@ class Array(Value):
             else:
                 immediateData.append(self.type.getElementType().pack(value))
                 immediateLen += len(immediateData[-1])
-        immediateString = "".join(immediateData)
-        offsetedString = "".join(offsetedData)
+        immediateString = b"".join(immediateData)
+        offsetedString = b"".join(offsetedData)
         return immediateString, offsetedString
     
     def pretty(self):
@@ -304,25 +310,26 @@ class Array(Value):
 # c array - either variable length, or fixed length
 class SimpleArray(Array):
     def __init__(self, elementType, values, fixedSize=None, byteAlignment=None):
-        if isinstance(elementType, types.ReferenceType):
+        if isinstance(elementType, n_types.ReferenceType):
             raise Exception("simple arrays cannot store references")
         if fixedSize is not None:
             assert (len(values) <= fixedSize)
         self.fixedSize = fixedSize
-        Array.__init__(self, types.SimpleArrayType(elementType, fixedSize, byteAlignment), values)
+
+        Array.__init__(self, n_types.SimpleArrayType(elementType, fixedSize, byteAlignment), values)
     
     def getImmediateDataSize(self):
-        return (self.type.getElementType().getWidth()
-                * (len(self.values) if self.fixedSize is None else self.fixedSize))
+        return int((self.type.getElementType().getWidth()
+                * (len(self.values) if self.fixedSize is None else self.fixedSize)))
     
     def pack(self, dataOffset=None, elementOffsetsRelativeToElement=True):
         immediateData, offsetData = Array.pack(self, dataOffset)  # call super pack
         if self.fixedSize is not None:
             # fill the data with zero bytes 
             immediateData = (immediateData
-                             + "\x00" * (self.getImmediateDataSize() - len(immediateData)))
+                             + b"\x00" * (self.getImmediateDataSize() - len(immediateData)))
         if dataOffset is None:
-            return immediateData + offsetData, ""
+            return immediateData + offsetData, b""
         else:
             return immediateData, offsetData
 
@@ -333,7 +340,7 @@ class String(SimpleArray):
         chars = stringhelper.stringToChars(string)
         if omitTerminal:
             chars = chars[:-1]
-        SimpleArray.__init__(self, types.CharType(), chars, fixedSize)
+        SimpleArray.__init__(self, n_types.CharType(), chars, fixedSize)
         self.string = string
     
     def pretty(self):
@@ -355,13 +362,13 @@ class Blob(SimpleArray):
     def __init__(self, blob, fixedSize=None, byteAlignment=4):
         global blobStrings
         blobStrings.append(blob)
-        if isinstance(blob, basestring):
+        if isinstance(blob, str):
             bitArrays = [bithelper.toBits(ord(c), numBits=8) for c in blob]
             blob = []
             for bitArray in bitArrays:
                 blob.extend(bitArray)
         blob = array.array('B', blob)  # turn blob into an actual binary array - if it's not a string
-        SimpleArray.__init__(self, types.CharType(), bithelper.packBitsToChars(blob), fixedSize, byteAlignment)
+        SimpleArray.__init__(self, n_types.CharType(), bithelper.packBitsToChars(blob), fixedSize, byteAlignment)
         self.blob = blob
     
     def pretty(self):
@@ -390,14 +397,14 @@ class ReferenceArray(Array):
                 raise Exception("reference array needs to be constructed from Value elements")
             if isinstance(v, Reference):
                 raise Exception("cannot store references in reference array")
-            elementType = types.mergeTypes(v.getType(), elementType)
+            elementType = n_types.mergeTypes(v.getType(), elementType)
             targetValues.append(v)
         referenceValues = [Reference(v, referenceBitWidth) for v in targetValues]
-        Array.__init__(self, types.ReferenceArrayType(elementType, fixedSize, referenceBitWidth), referenceValues)
+        Array.__init__(self, n_types.ReferenceArrayType(elementType, fixedSize, referenceBitWidth), referenceValues)
     
     def getImmediateDataSize(self):
-        return (self.type.getElementType().getWidth()
-                * (len(self.values) if self.fixedSize is None else self.fixedSize))
+        return int((self.type.getElementType().getWidth()
+                * (len(self.values) if self.fixedSize is None else self.fixedSize)))
     
     def pack(self, dataOffset=None, elementOffsetsRelativeToElement=True):
         if dataOffset is None:
@@ -409,7 +416,7 @@ class ReferenceArray(Array):
         if self.fixedSize is not None:
             # fill the data with zero bytes 
             immediateData = (immediateData
-                             + "\x00" * (self.getImmediateDataSize() - len(immediateData)))
+                             + b"\x00" * (self.getImmediateDataSize() - len(immediateData)))
         if combine:
             return immediateData + offsetData, ""
         else:
@@ -423,7 +430,7 @@ class ReservedValue(SimpleArray):
 
 class EnumValue(Value):
     def __init__(self, enumType, name):
-        assert isinstance(enumType, types.EnumType)
+        assert isinstance(enumType, n_types.EnumType)
         assert name in enumType.mapping
         super(EnumValue, self).__init__(enumType)
         self.name = name
@@ -442,7 +449,7 @@ class EnumValue(Value):
         raise self.type.values[self.name].getLiteral()
     
     def getImmediateDataSize(self):
-        return self.type.getEnumType().getWidth()
+        return int(self.type.getEnumType().getWidth())
     
     def pack(self, dataOffset=None):
         return self.type.mapping[self.name].pack(dataOffset=dataOffset)
@@ -455,7 +462,7 @@ class EnumValue(Value):
 # structs don't have fixed width unless they are closed/finished
 class Struct(Value, constants.AddConstantFunctions):
     def __init__(self, name):
-        structType = types.StructType(name)
+        structType = n_types.StructType(name)
         Value.__init__(self, structType)
         self.values = []  # list of member values
     
@@ -484,7 +491,7 @@ class Struct(Value, constants.AddConstantFunctions):
         return constantPool.get(key).getPythonValue()
     
     def getImmediateDataSize(self):
-        return sum(v.getImmediateDataSize() for v in self.values)
+        return int(sum(v.getImmediateDataSize() for v in self.values))
     
     # will add a new value to the struct.
     # if value is a dictionary, will add value[name]
@@ -589,7 +596,7 @@ class Struct(Value, constants.AddConstantFunctions):
         if string is None:
             if fixedWidth is not None:
                 raise Exception("cannot add fixed with string as a null-reference")
-            self.addImmediate(name, Reference(None, targetType=types.SimpleArrayType(types.CharType())))
+            self.addImmediate(name, Reference(None, targetType=n_types.SimpleArrayType(n_types.CharType())))
         else:
             self.addReference(name, String(string, fixedWidth, omitTerminal), referenceBitWidth)
         return self
@@ -646,17 +653,19 @@ class Struct(Value, constants.AddConstantFunctions):
                 combine = True
             else:
                 combine = False
-            immediateData = ""
-            offsetedData = ""
+            immediateData = b""
+            offsetedData = b""
             for i, value in enumerate(self.values):
                 immediate, referred = value.pack(dataOffset)
+                if isinstance(referred, str):
+                    referred = bytes(referred, 'utf-8')
                 dataOffset += len(referred)
                 immediateData = immediateData + immediate
                 offsetedData = offsetedData + referred
             padding = self.getImmediateDataSize() - len(immediateData)
-            immediateData += "\x00" * padding
+            immediateData += b"\x00" * padding
             if combine:
-                return immediateData + offsetedData, ""
+                return immediateData + offsetedData, b""
             else:
                 return immediateData, offsetedData
                 # except Exception as e:
@@ -680,18 +689,18 @@ class Struct(Value, constants.AddConstantFunctions):
         numLen = len(str(sum(sizes)))
         numFormat = "%" + str(numLen) + "d"
         # print name, sizes, total
-        print " " * indent + "struct %s:" % self.type.getName()
-        print " " * indent + "-" * (maxNameLen + numLen)
+        print(" " * indent + "struct %s:" % self.type.getName())
+        print(" " * indent + "-" * (maxNameLen + numLen))
         for i, name in enumerate(names):
-            print " " * indent + name + (" " * (maxNameLen - len(name))) + (numFormat % sizes[i])
-        print " " * indent + "-" * (maxNameLen + numLen)
-        print " " * indent + total + (" " * (maxNameLen - len(total))) + (numFormat % sum(sizes))
+            print(" " * indent + name + (" " * (maxNameLen - len(name))) + (numFormat % sizes[i]))
+        print(" " * indent + "-" * (maxNameLen + numLen))
+        print(" " * indent + total + (" " * (maxNameLen - len(total))) + (numFormat % sum(sizes)))
 
 
 # an array of bitfield values, with variable number of bits
 class BitFieldArray(Value):
     def __init__(self, name, *fields):
-        super(BitFieldArray, self).__init__(types.BitFieldArrayType(name, fields))
+        super(BitFieldArray, self).__init__(n_types.BitFieldArrayType(name, fields))
         self.entries = []  # each entry is an array of (isBlob,value)
     
     def __repr__(self):
@@ -790,13 +799,13 @@ class BitFieldArray(Value):
     
     def getImmediateDataSize(self):
         fieldLengths = self.getFieldLengths()
-        return (len(fieldLengths) + 2) * 2 + (sum(fieldLengths) * len(self.entries) + 7) / 8
+        return int((len(fieldLengths) + 2) * 2 + (sum(fieldLengths) * len(self.entries) + 7) / 8)
     
     def pack(self, dataOffset=None):
         fieldLengths = self.getFieldLengths()
         offset = (len(fieldLengths) + 2) * 16
         headerValues = [sum(fieldLengths)] + [offset + sum(fieldLengths[:i]) for i in range(len(fieldLengths) + 1)]
-        header = namedstruct.pack(SimpleArray(types.UINT16, headerValues), addPadding=False)
+        header = namedstruct.pack(SimpleArray(n_types.UINT16, headerValues), addPadding=False)
         # create data blob
         blob = array.array('B', [])
         for entry in self.entries:

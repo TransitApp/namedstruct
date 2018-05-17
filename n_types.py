@@ -1,11 +1,14 @@
+from __future__ import absolute_import, division
+from builtins import str
+from builtins import object
 import collections
 import numbers
 import struct
 
-import bithelper
-import constants
-import stringhelper
-import values
+from . import bithelper
+from . import constants
+from . import stringhelper
+from . import values
 
 
 # given two types, merges them, but if one of them is NullType, returns the other type
@@ -129,7 +132,7 @@ class PrimitiveType(Type):
         f = "<"  # format prefix defining little endian, standard encoding
         formatChar = self.getFormatChar()
         return struct.pack(f + formatChar, aPythonValue)
-    
+
     def hasEqualMethod(self):
         return True
     
@@ -199,8 +202,8 @@ class CharType(IntType):
         return "s"
     
     def assertValueHasType(self, aValue):
-        if not isinstance(aValue, basestring) or len(aValue) != 1:
-            raise Exception(str(aValue) + " is not a char")
+        if not isinstance(aValue, bytes):
+            raise Exception(str(aValue) + " is not a bytes")
         self.pack(aValue)
     
     def makeValue(self, aChar):
@@ -290,10 +293,10 @@ class BitFieldType(Type):
         result = result + indent + self.dataType.getName() + " bits;\n"
         # add accessor functions
         shift = 0
-        
+
         def getTypeName(field):
             return "int" if field.type in {"i", "u"} else field.type.getUniqueName()
-        
+
         setters = ""
         if len(self.fieldArray) > 0:
             fieldNameWidth = max(len(field.name) + len(getTypeName(field)) for field in self.fieldArray)
@@ -314,7 +317,7 @@ class BitFieldType(Type):
                 result += (
                     "{indent}/** {bitWidth:2} bit{s} */ inline {fieldType} get{fieldName}() {space}const {{" +
                     " auto v = " + (
-                        "(bits >> {shift:2}) & {mask}" if fieldWidth > 0 else ' ' * (16 + maskChars) + "0") + "; "
+                        "(bits >> {shift:2}) & {mask}" if fieldWidth > 0 else ' ' * (16 + int(maskChars)) + "0") + "; "
                                                                                                               " return static_cast<{fieldType}>(" +
                     ("(v >> 1) ^ (-(v & 1))" if useZigZag else "v") +
                     "); " +
@@ -591,7 +594,11 @@ class EnumType(Type):
         for name, value in mapping:
             stringhelper.assertIsValidIdentifier(name)
             namedstructValue = enumType.makeValue(value)
-            self._hasNegativeValues = self._hasNegativeValues or (value < 0)
+            if isinstance(value, int):
+                is_negative_value = value < 0
+            else:
+                is_negative_value = False
+            self._hasNegativeValues = self._hasNegativeValues or is_negative_value
             self.mapping[name] = namedstructValue
             enumValue = values.EnumValue(self, name)  # the enum value constructor requres the self.mapping value
             self.values[name] = enumValue
@@ -616,7 +623,7 @@ class EnumType(Type):
         header = "enum class {uniqueName} : {valueType} {{".format(uniqueName=self.uniqueName, valueType=self.name)
         members = [
             "{indent}{name} = {value}".format(indent=indent, name=name, value=value.getLiteral())
-            for name, value in self.mapping.items()
+            for name, value in list(self.mapping.items())
             ]
         return header + "\n" + ",\n".join(members) + "\n};"
     
@@ -669,7 +676,7 @@ class EnumType(Type):
     
     # returns the set of values used by theis enum
     def getPythonValues(self):
-        return set(v.getPythonValue() for v in self.mapping.values())
+        return set(v.getPythonValue() for v in list(self.mapping.values()))
     
     def hasNegativeValues(self):
         return self._hasNegativeValues
@@ -796,6 +803,7 @@ class StructType(Type, constants.AddConstantFunctions):
         return "struct " + self.getName() + ";"
     
     def getDeclaration(self, indent=stringhelper.indent, includeSetters=False):
+        indent = indent
         result = "typedef struct __attribute__((packed)) %s {\n" % self.getName()
         
         # add constants
@@ -808,13 +816,16 @@ class StructType(Type, constants.AddConstantFunctions):
         typeWidth = max([0] + [len(memberType.getName()) for memberType in self.types])
         for i, memberName in enumerate(self.names):
             memberType = self.types[i]
-            memberName = memberName + memberType.getNameSuffix()
-            space = " " * (typeWidth + 1 - len(memberType.getName()))
+            memberNameSuffix = memberType.getNameSuffix()
+            memberTypeName = memberType.getName()
+            memberName = memberName + memberNameSuffix
+            memberTypeDesclarationNameSuffix = memberType.getDeclarationNameSuffix()
+            space = " " * (typeWidth + 1 - len(memberTypeName))
             comment = ""  # comment comes from struct or from type
             result = (result
                       + indent
-                      + memberType.getName() + space
-                      + memberName + memberType.getDeclarationNameSuffix() + ";"
+                      + memberTypeName + space
+                      + memberName + memberTypeDesclarationNameSuffix + ";"
                       + comment
                       + "\n")
         
@@ -822,10 +833,10 @@ class StructType(Type, constants.AddConstantFunctions):
         functions = ""
         for i, memberName in enumerate(self.names):
             memberType = self.types[i]
-            function = memberType.getAccessorFunction(memberName, indent=stringhelper.indent)
-            if function is not None:
-                function = ("\n" + function + "\n").replace("\n", "\n" + indent)
-                functions += function
+            accessorFunction = memberType.getAccessorFunction(memberName, indent=stringhelper.indent)
+            if accessorFunction is not None:
+                accessorFunction = ("\n" + accessorFunction + "\n").replace("\n", "\n" + indent)
+                functions += accessorFunction
         if len(functions) > 0:
             result = result + functions[:-len(indent)]
         

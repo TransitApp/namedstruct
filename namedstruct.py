@@ -1,9 +1,10 @@
+from __future__ import absolute_import
 import collections
 
-import stringhelper
-import types
-import values
-import types
+from . import stringhelper
+from . import n_types
+from . import values
+from . import n_types
 
 
 # namedstruct library
@@ -184,8 +185,8 @@ import types
 # constantPools may be a single constantPool or a sequence of constant Pools
 def generateHeader(valuesOrEnumTypes, constantPools=None, namespace=None, define=None, headText="",
                    indent=stringhelper.indent, includeSetters=False):
-    import constants  # Avoid circular dependencies
-    
+    from . import constants  # Avoid circular dependencies
+
     # massage arguments
     if isinstance(valuesOrEnumTypes, values.Value):
         valuesOrEnumTypes = [valuesOrEnumTypes]
@@ -203,7 +204,7 @@ def generateHeader(valuesOrEnumTypes, constantPools=None, namespace=None, define
     # get all types
     allTypes = []
     for s in valuesOrEnumTypes:
-        if isinstance(s, types.EnumType):
+        if isinstance(s, n_types.EnumType):
             allTypes.append(s)
         elif isinstance(s, (values.Struct, values.BitField, values.EnumValue)):
             allTypes.append(s.type)
@@ -240,7 +241,7 @@ def generateHeader(valuesOrEnumTypes, constantPools=None, namespace=None, define
     
     # put forward declaration of all types - todo put only necessary ones...
     forwardDeclarations = ""
-    for cppType in allTypes.values():
+    for cppType in list(allTypes.values()):
         forwardDeclaration = cppType.getForwardDeclaration()
         if forwardDeclaration is None:
             continue
@@ -253,7 +254,7 @@ def generateHeader(valuesOrEnumTypes, constantPools=None, namespace=None, define
     
     # put declaration of all types
     typeDeclarations = ""
-    for name, cppType in allTypes.items():
+    for name, cppType in list(allTypes.items()):
         declaration = cppType.getDeclaration(indent=indent, includeSetters=includeSetters)
         if declaration is None:
             continue
@@ -262,7 +263,8 @@ def generateHeader(valuesOrEnumTypes, constantPools=None, namespace=None, define
                             + (declaration
                                + "\n").replace("\n", "\n" + currentIndent)
                             + "\n" + currentIndent)
-        
+
+    result = result
     if len(typeDeclarations) >= 0:
         result = (result + currentIndent + "\n" + currentIndent + "\n"
                   + currentIndent + "// *** type declarations *********************"
@@ -284,7 +286,7 @@ def pad(data, padExtra=True, paddingAlignment=4):
     numPaddingBytes = paddingAlignment - (len(data) % paddingAlignment)
     if not padExtra and numPaddingBytes == paddingAlignment:
         numPaddingBytes = 0
-    data += '\0' * numPaddingBytes
+    data += b'\0' * numPaddingBytes
     return data
 
 
