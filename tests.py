@@ -268,8 +268,8 @@ def generateTests(quiet=False):
     add(Struct("testStruct37")
         .addReference("stringRef", None, targetType=String().getType())
         .addNullReference("bitFieldReference", BitField("bitField2").add("aField", 0, 13).getType())
-        .addNullReference("int8ArrayRef", SimpleArray(types.INT8, [], 16), referenceBitWidth=16)
-        .addReference("uint8Ref", None, referenceBitWidth=8, targetType=types.INT8))
+        .addNullReference("int8ArrayRef", SimpleArray(n_types.INT8, [], 16), referenceBitWidth=16)
+        .addReference("uint8Ref", None, referenceBitWidth=8, targetType=n_types.INT8))
 
     add(Struct("testStruct38")
         .add("bitArray",
@@ -315,18 +315,18 @@ def generateTests(quiet=False):
                       .add([1, 0, 17, 53])
                       .add([0, 0, 42, 59])))
 
-    GenderEnum = namedstruct.types.EnumType("GenderEnum", namedstruct.types.UINT8, {'MALE': 0, 'FEMALE': 1, 'OTHER': 2})
-    NationEnum = namedstruct.types.EnumType("NationEnum", namedstruct.types.CHAR,
-                                            {'ENGLISH': 'e', 'FRENCH': 'f', 'OTHER': 'a'})
-    PartyEnum = namedstruct.types.IntEnumType("PartyEnum", {"CONSERVATIVE": -1, "LIBERAL": -2, "NDP": -3, "GREEN": -4})
+    GenderEnum = namedstruct.n_types.EnumType("GenderEnum", namedstruct.n_types.UINT8, {'MALE': 0, 'FEMALE': 1, 'OTHER': 2})
+    NationEnum = namedstruct.n_types.EnumType("NationEnum", namedstruct.n_types.CHAR,
+                                              {'ENGLISH': 'e', 'FRENCH': 'f', 'OTHER': 'a'})
+    PartyEnum = namedstruct.n_types.IntEnumType("PartyEnum", {"CONSERVATIVE": -1, "LIBERAL": -2, "NDP": -3, "GREEN": -4})
     add(Struct("testStruct42")
         .add("gender", GenderEnum.OTHER)
         .add("party", PartyEnum.GREEN)
         .add("nation", NationEnum.OTHER))
 
     # trivial enums
-    YesEnum = namedstruct.types.EnumType("YesEnum", namedstruct.types.UINT16, {"yes": 0})
-    NoEnum = namedstruct.types.IntEnumType("NoEnum", {"no": -1})
+    YesEnum = namedstruct.n_types.EnumType("YesEnum", namedstruct.n_types.UINT16, {"yes": 0})
+    NoEnum = namedstruct.n_types.IntEnumType("NoEnum", {"no": -1})
 
     add(Struct("testStruct43")
         .add("bitfield",
