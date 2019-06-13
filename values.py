@@ -1,5 +1,6 @@
 import array
 import numbers
+import collections
 
 import bithelper
 import constants
@@ -166,7 +167,7 @@ class BitField(Value):
         result += "\n}"
         return result
     
-    # packs this bietfield into an integer
+    # packs this bitfield into an integer
     def packToInt(self):
         value = 0
         shift = 0
@@ -581,7 +582,7 @@ class Struct(Value, constants.AddConstantFunctions):
     # if fixed with is True, will add a fixed width string inside the the struct, otherwise a 
     # a reference to a variable length string.
     # If omit terminal is true, will omit the '\0' terminal character at the end of the string.
-    # reference bit width allows overriding the bit widh of the reference (byte offset) used,
+    # reference bit width allows overriding the bit width of the reference (byte offset) used,
     # if the string is not stored as an immediate value.
     # returns self
     def addString(self, name, string, fixedWidth=None, omitTerminal=False, referenceBitWidth=32):
@@ -812,12 +813,23 @@ class BitFieldArray(Value):
         return header + data, ""
 
 
+def map_bitfieldarray(typename, iter, fn, debug=True):
+    structs = map(lambda elm: collections.OrderedDict(fn(elm)), iter)
+    array = (BitFieldArray(typename, *structs[0].keys())
+             .addAll([struct.values() for struct in structs]))
+
+    if debug:
+        print("  " + array.pretty().replace("\n", "\n  "))
+
+    return array
+
+
 # if value is a dictionary, returns value[name], otherwise returns value
 def dictGet(value, name):
     if isinstance(value, dict):
         # Help pycharm figuring it out it's a dict
         """:type :dict"""
-        dictionnary = value
-        return dictionnary[name]
+        dictionary = value
+        return dictionary[name]
     else:
         return value
