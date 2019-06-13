@@ -814,6 +814,16 @@ class BitFieldArray(Value):
 
 
 def map_bitfieldarray(typename, iter, fn, debug=True):
+    """
+    Creates a BitFieldArray from an iterable by applying the same map function to each element. The schema of the
+    BitFieldArray is taken from the fields returned by the map function.
+
+    :param typename: The name of the resultant BitFieldArray
+    :param iter: An iterable (e.g. a list)
+    :param fn: A function mapping elements of the iterable to a BitFieldArray element
+    :param debug: Print a summary of the bitfieldarray's contents
+    :return: A BitFieldArray
+    """
     structs = map(lambda elm: collections.OrderedDict(fn(elm)), iter)
     array = (BitFieldArray(typename, *structs[0].keys())
              .addAll([struct.values() for struct in structs]))
