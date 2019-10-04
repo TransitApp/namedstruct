@@ -4,6 +4,7 @@ from __future__ import division
 from builtins import str
 from builtins import range
 from builtins import object
+from builtins import bytes
 import array
 import numbers
 
@@ -38,7 +39,7 @@ def getValue(value):
     elif hasattr(value, "__iter__"):
         return getArrayValue(value)
     else:
-        raise Exception("can't convert " + str(value) + " to a Value")
+        raise Exception("can't convert %r, of type %s to a Value" % (value, type(value).__name__))
 
 
 # given an array, will return a reasonable array value for it, i.e. makes a Value array by turning
@@ -594,7 +595,7 @@ class Struct(Value, namedstruct.constants.AddConstantFunctions):
     # if fixed with is True, will add a fixed width string inside the the struct, otherwise a 
     # a reference to a variable length string.
     # If omit terminal is true, will omit the '\0' terminal character at the end of the string.
-    # reference bit width allows overriding the bit widh of the reference (byte offset) used,
+    # reference bit width allows overriding the bit width of the reference (byte offset) used,
     # if the string is not stored as an immediate value.
     # returns self
     def addString(self, name, string, fixedWidth=None, omitTerminal=False, referenceBitWidth=32):

@@ -591,19 +591,18 @@ class EnumType(Type):
             mapping = sorted(mapping.items())
         except AttributeError:
             pass
-        # TODO: enum_constant_name
-        for name, value in mapping:
-            namedstruct.stringhelper.assertIsValidIdentifier(name)
-            namedstructValue = enumType.makeValue(value)
-            if isinstance(value, int):
-                is_negative_value = value < 0
+        for enum_constant_name, enum_constant_value in mapping:
+            namedstruct.stringhelper.assertIsValidIdentifier(enum_constant_name)
+            namedstructValue = enumType.makeValue(enum_constant_value)
+            if isinstance(enum_constant_value, int):
+                is_negative_value = enum_constant_value < 0
             else:
                 is_negative_value = False
             self._hasNegativeValues = self._hasNegativeValues or is_negative_value
-            self.mapping[name] = namedstructValue
-            enumValue = namedstruct.values.EnumValue(self, name)  # the enum value constructor requres the self.mapping value
-            self.values[name] = enumValue
-            setattr(self, name, enumValue)
+            self.mapping[enum_constant_name] = namedstructValue
+            enumValue = namedstruct.values.EnumValue(self, enum_constant_name)  # the enum value constructor requres the self.mapping value
+            self.values[enum_constant_name] = enumValue
+            setattr(self, enum_constant_name, enumValue)
     
     def __getitem__(self, key):
         return self.values[key]
@@ -797,7 +796,7 @@ class StructType(Type, namedstruct.constants.AddConstantFunctions):
             else:
                 result.addMember(name, t1)
         result.mutable = self.mutable
-        result.constantPool = self.constantPool  # FIXME - This is a hack! Properly deal with cosntant pools!
+        result.constantPool = self.constantPool  # FIXME - This is a hack! Properly deal with constant pools!
         return result
     
     def getForwardDeclaration(self):
