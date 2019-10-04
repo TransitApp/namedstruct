@@ -1,6 +1,7 @@
 from __future__ import absolute_import, division
 from builtins import str
 from builtins import object
+from builtins import bytes
 import collections
 import numbers
 import struct
