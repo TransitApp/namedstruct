@@ -7,7 +7,7 @@ import unittest
 
 # TODO: Remove this once migration is completed
 import sys
-import compat
+import namedstruct.compat
 if sys.version_info.major >= 3:
     unicode = str
 
@@ -62,7 +62,7 @@ def packBitsToChars(bits):
     if numBits > 0:
         result.append(c)
     bitsToChar = struct.pack("<" + str(len(result)) + "B", *bytes(result))
-    arrayOfIndividualBytes = [bytes([compat.ord_if_needed(charValue)]) for charValue in bitsToChar]
+    arrayOfIndividualBytes = [bytes([namedstruct.compat.ord_if_needed(charValue)]) for charValue in bitsToChar]
     return arrayOfIndividualBytes
 
 

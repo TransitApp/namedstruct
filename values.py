@@ -17,7 +17,7 @@ import namedstruct.n_types
 
 # TODO: Remove once Python 3 migration is completed
 import sys
-import compat
+import namedstruct.compat
 if sys.version_info.major >= 3:
     unicode = str
 
@@ -370,7 +370,7 @@ class Blob(SimpleArray):
         global blobStrings
         blobStrings.append(blob)
         if isinstance(blob, (str, unicode, bytes)):
-            bitArrays = [namedstruct.bithelper.toBits(compat.ord_if_needed(c), numBits=8) for c in blob]
+            bitArrays = [namedstruct.bithelper.toBits(namedstruct.compat.ord_if_needed(c), numBits=8) for c in blob]
             blob = []
             for bitArray in bitArrays:
                 blob.extend(bitArray)
