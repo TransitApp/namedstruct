@@ -15,6 +15,10 @@ def stringToChars(string):
     return arrayOfIndividualBytes
 
 
+def stringToCString(string):
+    return bytes(string, 'utf-8') + b'\0'
+
+
 # ********** creating types/headers *****************************************
 # given a string, returns a copy with the first letter capitalized, and the others unchanged
 def capitalizeFirst(string):

@@ -1,10 +1,9 @@
 from __future__ import absolute_import
 import collections
 
-from . import stringhelper
-from . import n_types
-from . import values
-from . import n_types
+import namedstruct.values
+import namedstruct.n_types
+import namedstruct.stringhelper
 
 
 # namedstruct library
@@ -184,7 +183,7 @@ from . import n_types
 # structs may be a value or a sequence of structs/bitfield values/enum type
 # constantPools may be a single constantPool or a sequence of constant Pools
 def generateHeader(valuesOrEnumTypes, constantPools=None, namespace=None, define=None, headText="",
-                   indent=stringhelper.indent, includeSetters=False):
+                   indent=namedstruct.stringhelper.indent, includeSetters=False):
     from . import constants  # Avoid circular dependencies
 
     # massage arguments
@@ -198,15 +197,15 @@ def generateHeader(valuesOrEnumTypes, constantPools=None, namespace=None, define
         define = "__" + valuesOrEnumTypes[0].getType().getName().upper() + "__"
     namespaceString = ""
     if namespace is not None:
-        stringhelper.assertIsValidIdentifier(namespace)
+        namedstruct.stringhelper.assertIsValidIdentifier(namespace)
         namespaceString = "namespace %s {\n" % namespace
     
     # get all types
     allTypes = []
     for s in valuesOrEnumTypes:
-        if isinstance(s, n_types.EnumType):
+        if isinstance(s, namedstruct.n_types.EnumType):
             allTypes.append(s)
-        elif isinstance(s, (values.Struct, values.BitField, values.EnumValue)):
+        elif isinstance(s, (namedstruct.values.Struct, namedstruct.values.BitField, namedstruct.values.EnumValue)):
             allTypes.append(s.type)
         else:
             raise Exception("cannot generated header for value: %s" % s)

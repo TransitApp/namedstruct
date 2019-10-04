@@ -5,10 +5,10 @@ import collections
 import numbers
 import struct
 
-from . import bithelper
-from . import constants
-from . import stringhelper
-from . import values
+import namedstruct.bithelper
+import namedstruct.constants
+import namedstruct.stringhelper
+import namedstruct.values
 
 
 # given two types, merges them, but if one of them is NullType, returns the other type
@@ -59,13 +59,13 @@ class Type(object):
         yield self
     
     # returns a c++ declaration of the type. If the type does not need to be declared (e.g. int32_t), returns None
-    def getDeclaration(self, indent=stringhelper.indent, includeSetters=False):
+    def getDeclaration(self, indent=namedstruct.stringhelper.indent, includeSetters=False):
         return None
     
     def getForwardDeclaration(self):
         return None
     
-    def getAccessorFunction(self, memberName, indent=stringhelper.indent):
+    def getAccessorFunction(self, memberName, indent=namedstruct.stringhelper.indent):
         return None
     
     def getDeclarationNameSuffix(self):  # for example [] for arrays, [24] for fixed arrays
@@ -167,7 +167,7 @@ class IntType(PrimitiveType):
         self.pack(aValue)
     
     def getWidth(self):
-        return self.bitWidth / 8
+        return self.bitWidth // 8
     
     def merge(self, other):
         _typeEqualAssert(self, other, "name")
@@ -178,7 +178,7 @@ class IntType(PrimitiveType):
         return f.upper() if self.unsigned else f.lower()
     
     def makeValue(self, aValue):
-        return values.Int(aValue, self.unsigned, self.bitWidth)
+        return namedstruct.values.Int(aValue, self.unsigned, self.bitWidth)
 
 
 INT8 = IntType(False, 8)
@@ -207,7 +207,7 @@ class CharType(IntType):
         self.pack(aValue)
     
     def makeValue(self, aChar):
-        return values.Char(aChar)
+        return namedstruct.values.Char(aChar)
 
 
 CHAR = CharType()
@@ -237,7 +237,7 @@ class BitFieldType(Type):
         if field.name in self.fields:
             raise Exception(
                     "cannot use existing field name " + field.name + " as field name for bit field " + self.name)
-        stringhelper.assertIsValidIdentifier(field.name)
+        namedstruct.stringhelper.assertIsValidIdentifier(field.name)
         self.fieldArray.append(field)
         self.fields[field.name] = len(self.fields)
     
@@ -257,10 +257,10 @@ class BitFieldType(Type):
     def getRequiredBitsForEnum(enumType):
         pythonValues = enumType.getPythonValues()
         if not enumType.hasNegativeValues():
-            numBits = bithelper.requiredBits(max(pythonValues))
+            numBits = namedstruct.bithelper.requiredBits(max(pythonValues))
         else:
-            numBits = bithelper.requiredBits(max(bithelper.zigZagEncode(max(pythonValues)),
-                                                 bithelper.zigZagEncode(min(pythonValues))))
+            numBits = namedstruct.bithelper.requiredBits(max(namedstruct.bithelper.zigZagEncode(max(pythonValues)),
+                                                 namedstruct.bithelper.zigZagEncode(min(pythonValues))))
         return numBits
     
     def getUniqueName(self):
@@ -287,7 +287,7 @@ class BitFieldType(Type):
     def getForwardDeclaration(self):
         return "struct " + self.getName() + ";"
     
-    def getDeclaration(self, indent=stringhelper.indent, includeSetters=False):
+    def getDeclaration(self, indent=namedstruct.stringhelper.indent, includeSetters=False):
         result = "typedef struct __attribute__((packed)) %s {\n" % self.getName()
         # add member
         result = result + indent + self.dataType.getName() + " bits;\n"
@@ -300,7 +300,7 @@ class BitFieldType(Type):
         setters = ""
         if len(self.fieldArray) > 0:
             fieldNameWidth = max(len(field.name) + len(getTypeName(field)) for field in self.fieldArray)
-            maskChars = (max(field.bitWidth for field in self.fieldArray) + 3) / 4
+            maskChars = (max(field.bitWidth for field in self.fieldArray) + 3) // 4
             for field in self.fieldArray:
                 fieldName = field.name
                 fieldWidth = field.bitWidth
@@ -311,7 +311,7 @@ class BitFieldType(Type):
                 useZigZag = (field.type == 'i') if field.type in {'i', 'u'} else field.type.hasNegativeValues()
                 
                 formatDict = dict(fieldType=fieldType,
-                                  indent=stringhelper.indent, fieldName=stringhelper.capitalizeFirst(fieldName),
+                                  indent=namedstruct.stringhelper.indent, fieldName=namedstruct.stringhelper.capitalizeFirst(fieldName),
                                   shift=shift, mask=mask, s=s, space=space, bitWidth=fieldWidth,
                                   fieldNameWidthSpaces=' ' * fieldNameWidth)
                 result += (
@@ -419,15 +419,15 @@ class ReferenceType(Type):
                 + "->"
                 + (self.targetType.getUniqueName() if self.targetType is not None else "0"))
     
-    def getAccessorFunction(self, memberName, indent=stringhelper.indent):
+    def getAccessorFunction(self, memberName, indent=namedstruct.stringhelper.indent):
         memberTypeName = self.targetType.getName() if self.targetType is not None else "void"
-        functionName = "get" + stringhelper.capitalizeFirst(memberName)
+        functionName = "get" + namedstruct.stringhelper.capitalizeFirst(memberName)
         functionCode = (
             "/** Returns {memberTypeName}-pointer to member {memberName}.\n" +
             " *  If {memberName} is null/void then the result is undefined. */\n" +
             "inline {memberTypeName}* {functionName}() const {{\n" +
             "{indent}return ({memberTypeName}*)(uintptr_t(this)+this->{memberName}{suffix});\n" +
-            "}}").format(indent=stringhelper.indent, functionName=functionName, suffix=self.getNameSuffix(),
+            "}}").format(indent=namedstruct.stringhelper.indent, functionName=functionName, suffix=self.getNameSuffix(),
                          memberName=memberName, memberTypeName=memberTypeName)
         return functionCode
 
@@ -547,7 +547,7 @@ class ReferenceArrayType(ArrayType):
     def getForwardDeclaration(self):
         return "struct " + self.getName() + ";"
     
-    def getDeclaration(self, indent=stringhelper.indent, includeSetters=False):
+    def getDeclaration(self, indent=namedstruct.stringhelper.indent, includeSetters=False):
         result = "typedef struct __attribute__((packed)) %s {\n" % self.getName()
         # add member
         result = (result + indent + self.elementType.referenceType.getName() + " elementByteOffsets"
@@ -561,7 +561,7 @@ class ReferenceArrayType(ArrayType):
             "{indent} *  If the element at the given index is null/void, then the result is undefined. */\n" +
             "{indent}inline {elementTypeName}* get(const int index) const {{\n" +
             "{indent}{indent}return ({elementTypeName}*)(uintptr_t(this)+this->elementByteOffsets[index]);\n" +
-            "{indent}}}").format(indent=stringhelper.indent, elementTypeName=elementTypeName)
+            "{indent}}}").format(indent=namedstruct.stringhelper.indent, elementTypeName=elementTypeName)
         
         # finish
         result = result + "\n} " + self.getName() + ";"
@@ -591,8 +591,9 @@ class EnumType(Type):
             mapping = sorted(mapping.items())
         except AttributeError:
             pass
+        # TODO: enum_constant_name
         for name, value in mapping:
-            stringhelper.assertIsValidIdentifier(name)
+            namedstruct.stringhelper.assertIsValidIdentifier(name)
             namedstructValue = enumType.makeValue(value)
             if isinstance(value, int):
                 is_negative_value = value < 0
@@ -600,7 +601,7 @@ class EnumType(Type):
                 is_negative_value = False
             self._hasNegativeValues = self._hasNegativeValues or is_negative_value
             self.mapping[name] = namedstructValue
-            enumValue = values.EnumValue(self, name)  # the enum value constructor requres the self.mapping value
+            enumValue = namedstruct.values.EnumValue(self, name)  # the enum value constructor requres the self.mapping value
             self.values[name] = enumValue
             setattr(self, name, enumValue)
     
@@ -619,7 +620,7 @@ class EnumType(Type):
     def getContainedTypes(self):
         return [self.getEnumType()]
     
-    def getDeclaration(self, indent=stringhelper.indent, includeSetters=False):
+    def getDeclaration(self, indent=namedstruct.stringhelper.indent, includeSetters=False):
         header = "enum class {uniqueName} : {valueType} {{".format(uniqueName=self.uniqueName, valueType=self.name)
         members = [
             "{indent}{name} = {value}".format(indent=indent, name=name, value=value.getLiteral())
@@ -630,13 +631,13 @@ class EnumType(Type):
     def getForwardDeclaration(self):
         return "enum class {name} : {type};".format(name=self.uniqueName, type=self.name)
     
-    def getAccessorFunction(self, memberName, indent=stringhelper.indent):
-        functionName = "get" + stringhelper.capitalizeFirst(memberName)
+    def getAccessorFunction(self, memberName, indent=namedstruct.stringhelper.indent):
+        functionName = "get" + namedstruct.stringhelper.capitalizeFirst(memberName)
         functionCode = (
             "/** Returns {memberName} as a {type} enum */\n" +
             "inline {type} {functionName}() const {{\n" +
             "{indent}return static_cast<{type}>(this->{memberName}{suffix});\n" +
-            "}}").format(indent=stringhelper.indent, functionName=functionName, suffix=self.getNameSuffix(),
+            "}}").format(indent=namedstruct.stringhelper.indent, functionName=functionName, suffix=self.getNameSuffix(),
                          memberName=memberName, type=self.uniqueName)
         return functionCode
     
@@ -674,7 +675,7 @@ class EnumType(Type):
         _typeEqualAssert(self, other, "name", "enumType", "mapping")
         return self
     
-    # returns the set of values used by theis enum
+    # returns the set of values used by this enum
     def getPythonValues(self):
         return set(v.getPythonValue() for v in list(self.mapping.values()))
     
@@ -684,10 +685,10 @@ class EnumType(Type):
         # this is the only type that is mutable
 
 
-class StructType(Type, constants.AddConstantFunctions):
+class StructType(Type, namedstruct.constants.AddConstantFunctions):
     def __init__(self, name):
         super(StructType, self).__init__()
-        self.constantPool = constants.ConstantPool()
+        self.constantPool = namedstruct.constants.ConstantPool()
         self.mutable = True
         self.name = name
         self.alignment = 1
@@ -726,7 +727,7 @@ class StructType(Type, constants.AddConstantFunctions):
         if name in self.members:
             raise Exception("name %s already in struct %s" % (name, self.name))
         assert (isinstance(memberType, Type))
-        stringhelper.assertIsValidIdentifier(name)
+        namedstruct.stringhelper.assertIsValidIdentifier(name)
         padding = self.addPadding(memberType.getAlignment())
         # actually add member
         self.members[name] = len(self.offsets)
@@ -802,12 +803,12 @@ class StructType(Type, constants.AddConstantFunctions):
     def getForwardDeclaration(self):
         return "struct " + self.getName() + ";"
     
-    def getDeclaration(self, indent=stringhelper.indent, includeSetters=False):
+    def getDeclaration(self, indent=namedstruct.stringhelper.indent, includeSetters=False):
         indent = indent
         result = "typedef struct __attribute__((packed)) %s {\n" % self.getName()
         
-        # add constants
-        if self.constantPool.getNumConstants() > 0:
+        # add namedstruct.constants
+        if self.constantPool.getNumnamedstruct.constants() > 0:
             result = (result
                       + indent
                       + self.constantPool.getConstantDeclarations().replace("\n", "\n" + indent) + "\n")
@@ -833,7 +834,7 @@ class StructType(Type, constants.AddConstantFunctions):
         functions = ""
         for i, memberName in enumerate(self.names):
             memberType = self.types[i]
-            accessorFunction = memberType.getAccessorFunction(memberName, indent=stringhelper.indent)
+            accessorFunction = memberType.getAccessorFunction(memberName, indent=namedstruct.stringhelper.indent)
             if accessorFunction is not None:
                 accessorFunction = ("\n" + accessorFunction + "\n").replace("\n", "\n" + indent)
                 functions += accessorFunction
@@ -871,7 +872,7 @@ class BitFieldArrayType(Type):
         if len(fields) == 0:
             raise Exception("BitFieldArrayType needs at least one field")
         for field in fields:
-            stringhelper.assertIsValidIdentifier(field)
+            namedstruct.stringhelper.assertIsValidIdentifier(field)
             assert (field != 'bitFieldArrayEntryBits')
         self.fields = fields
     
@@ -887,7 +888,7 @@ class BitFieldArrayType(Type):
     def getForwardDeclaration(self):
         return "struct " + self.getName() + ";"
     
-    def getDeclaration(self, indent=stringhelper.indent, includeSetters=False):
+    def getDeclaration(self, indent=namedstruct.stringhelper.indent, includeSetters=False):
         result = "typedef struct __attribute__((packed)) %s {\n" % self.getName()
         
         # add members
@@ -924,7 +925,7 @@ class BitFieldArrayType(Type):
 {indent}{indent}const int nextBitOffset = ((uint16_t*)(this))[2+fieldIndex];
 {indent}{indent}const int bitOffset = thisBitOffset + elementIndex*bitFieldArrayEntryBits;
 {indent}{indent}return namedstruct::readBits(this, bitOffset, nextBitOffset-thisBitOffset);
-{indent}}}""".format(indent=stringhelper.indent)
+{indent}}}""".format(indent=namedstruct.stringhelper.indent)
         # by name accessors:
         for i, field in enumerate(self.fields):
             if i == len(self.fields) - 1:
@@ -958,8 +959,8 @@ class BitFieldArrayType(Type):
 {indent}/** returns the value of the field {field} at the given index, assuming it has <= 31 bits, or the default the field is not present. */
 {indent}inline uint32_t get{Field}OrDefault(int index, int defaultValue = 0) const {{
 {indent}{indent}return has{Field}() ? get{Field}(index) : defaultValue;
-{indent}}}""".format(i=i, field=field, indent=stringhelper.indent, nextBitOffset=nextBitOffset,
-                     Field=stringhelper.capitalizeFirst(field))
+{indent}}}""".format(i=i, field=field, indent=namedstruct.stringhelper.indent, nextBitOffset=nextBitOffset,
+                     Field=namedstruct.stringhelper.capitalizeFirst(field))
         
         # finish
         result = result + "\n} " + self.getName() + ";"
