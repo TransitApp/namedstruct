@@ -1,9 +1,15 @@
 from builtins import str
 from builtins import range
-# from past.builtins import basestring
+from builtins import bytes
+from builtins import ord
 import math
 import struct
 import unittest
+import sys
+
+
+if sys.version_info.major >= 3:
+    unicode = str
 
 
 # returns the number of bits required to store the number
@@ -37,7 +43,7 @@ def toBits(number, numBits=None):
 # takes an array of bits, and returns them as a string (i.e. char array)
 # this operation should be indemptotent, i.e. a string will be returned as is
 def packBitsToChars(bits):
-    if isinstance(bits, str):
+    if isinstance(bits, (str, unicode, bytes)):
         for c in bits:
             if ord(c) < 0 or ord(c) > 255:
                 raise Exception("blob strings myst be made of 8-bit chars, but found " + repr(c))
@@ -57,7 +63,11 @@ def packBitsToChars(bits):
     if numBits > 0:
         result.append(c)
     bitsToChar = struct.pack("<" + str(len(result)) + "B", *bytes(result))
-    arrayOfIndividualBytes = [bytes([charValue]) for charValue in bitsToChar]
+    if sys.version_info.major >= 3:
+        arrayOfIndividualBytes = [bytes([charValue]) for charValue in bitsToChar]
+    else:
+        arrayOfIndividualBytes = [bytes([ord(charValue)]) for charValue in bitsToChar]
+
     return arrayOfIndividualBytes
 
 

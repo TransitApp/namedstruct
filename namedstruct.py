@@ -2,7 +2,6 @@ from __future__ import absolute_import
 import collections
 
 from . import stringhelper
-from . import n_types
 from . import values
 from . import n_types
 

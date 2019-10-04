@@ -4,14 +4,20 @@ from __future__ import division
 from builtins import str
 from builtins import range
 from builtins import object
+from builtins import bytes
 import array
 import numbers
+import sys
+import collections
 
 from . import bithelper
 from . import constants
-from . import namedstruct
 from . import stringhelper
 from . import n_types
+import namedstruct
+
+if sys.version_info.major >= 3:
+    unicode = str
 
 
 # given a python object, will return a reasonable Value for it
@@ -25,14 +31,14 @@ def getValue(value):
         return value
     elif isinstance(value, numbers.Integral):
         return Int(value)
-    elif isinstance(value, str):
+    elif isinstance(value, (str, unicode, bytes)):
         return String(value)
     elif value is None:
         return Null()
     elif hasattr(value, "__iter__"):
         return getArrayValue(value)
     else:
-        raise Exception("can't convert " + str(value) + " to a Value")
+        raise Exception("can't convert %r, of type %s to a Value" % (value, type(value).__name__))
 
 
 # given an array, will return a reasonable array value for it, i.e. makes a Value array by turning
@@ -171,7 +177,7 @@ class BitField(Value):
         result += "\n}"
         return result
     
-    # packs this bietfield into an integer
+    # packs this bitfield into an integer
     def packToInt(self):
         value = 0
         shift = 0
@@ -362,8 +368,11 @@ class Blob(SimpleArray):
     def __init__(self, blob, fixedSize=None, byteAlignment=4):
         global blobStrings
         blobStrings.append(blob)
-        if isinstance(blob, str):
-            bitArrays = [bithelper.toBits(ord(c), numBits=8) for c in blob]
+        if isinstance(blob, (str, unicode, bytes)):
+            if not isinstance(blob, bytes) or sys.version_info.major < 3:
+                bitArrays = [bithelper.toBits(ord(c), numBits=8) for c in blob]
+            else:
+                bitArrays = [bithelper.toBits(c, numBits=8) for c in blob]
             blob = []
             for bitArray in bitArrays:
                 blob.extend(bitArray)
@@ -588,7 +597,7 @@ class Struct(Value, constants.AddConstantFunctions):
     # if fixed with is True, will add a fixed width string inside the the struct, otherwise a 
     # a reference to a variable length string.
     # If omit terminal is true, will omit the '\0' terminal character at the end of the string.
-    # reference bit width allows overriding the bit widh of the reference (byte offset) used,
+    # reference bit width allows overriding the bit width of the reference (byte offset) used,
     # if the string is not stored as an immediate value.
     # returns self
     def addString(self, name, string, fixedWidth=None, omitTerminal=False, referenceBitWidth=32):
@@ -821,12 +830,34 @@ class BitFieldArray(Value):
         return header + data, ""
 
 
+def map_bitfieldarray(typename, iterator, map_fn=lambda x: x, debug=True):
+    """
+    Creates a BitFieldArray from an iterable by applying the same map function to each element. The schema of the
+    BitFieldArray is taken from the fields returned by the map function.
+
+    :param typename: The name of the resultant BitFieldArray
+    :param iter: An iterable (e.g. a list)
+    :param map_fn: A function mapping elements of the iterable to a BitFieldArray element
+    :param debug: Print a summary of the bitfieldarray's contents
+    :return: A BitFieldArray
+    """
+    structs = list(map(lambda elm: collections.OrderedDict(map_fn(elm)), iterator))
+    array = (BitFieldArray(typename, *structs[0].keys())
+             .addAll([struct.values() for struct in structs]))
+
+    if debug:
+        print("  " + array.pretty().replace("\n", "\n  "))
+
+    return array
+
+
 # if value is a dictionary, returns value[name], otherwise returns value
 def dictGet(value, name):
     if isinstance(value, dict):
         # Help pycharm figuring it out it's a dict
         """:type :dict"""
-        dictionnary = value
-        return dictionnary[name]
+        dictionary = value
+        return dictionary[name]
     else:
         return value
+

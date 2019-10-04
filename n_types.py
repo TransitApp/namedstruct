@@ -8,8 +8,6 @@ import struct
 from . import bithelper
 from . import constants
 from . import stringhelper
-from . import values
-
 
 # given two types, merges them, but if one of them is NullType, returns the other type
 def mergeTypes(typeA, typeB):
@@ -167,7 +165,7 @@ class IntType(PrimitiveType):
         self.pack(aValue)
     
     def getWidth(self):
-        return self.bitWidth / 8
+        return self.bitWidth // 8
     
     def merge(self, other):
         _typeEqualAssert(self, other, "name")
@@ -796,7 +794,7 @@ class StructType(Type, constants.AddConstantFunctions):
             else:
                 result.addMember(name, t1)
         result.mutable = self.mutable
-        result.constantPool = self.constantPool  # FIXME - This is a hack! Properly deal with cosntant pools!
+        result.constantPool = self.constantPool  # FIXME - This is a hack! Properly deal with constant pools!
         return result
     
     def getForwardDeclaration(self):
@@ -974,3 +972,4 @@ class BitFieldArrayType(Type):
     
     def getWidth(self):
         raise Exception("cannot ask width of bitfield array type")
+

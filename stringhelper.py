@@ -1,4 +1,5 @@
 from builtins import str
+from builtins import bytes
 import re
 
 indent = " " * 4
@@ -13,6 +14,10 @@ def stringToChars(string):
         arrayOfIndividualBytes.append(bytes([charValue]))
 
     return arrayOfIndividualBytes
+
+
+def stringToCString(string):
+    return bytes(string, 'utf-8') + b'\0'
 
 
 # ********** creating types/headers *****************************************
