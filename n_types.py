@@ -806,8 +806,8 @@ class StructType(Type, namedstruct.constants.AddConstantFunctions):
         indent = indent
         result = "typedef struct __attribute__((packed)) %s {\n" % self.getName()
         
-        # add namedstruct.constants
-        if self.constantPool.getNumnamedstruct.constants() > 0:
+        # add constants
+        if self.constantPool.getNumConstants() > 0:
             result = (result
                       + indent
                       + self.constantPool.getConstantDeclarations().replace("\n", "\n" + indent) + "\n")

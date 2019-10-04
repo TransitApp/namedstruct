@@ -1,4 +1,4 @@
-from builtins import str
+from builtins import str, bytes
 import re
 
 indent = " " * 4

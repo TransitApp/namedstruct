@@ -7,6 +7,7 @@ from builtins import object
 from builtins import bytes
 import array
 import numbers
+import collections
 
 import namedstruct.bithelper
 import namedstruct.constants

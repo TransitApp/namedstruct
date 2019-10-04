@@ -187,7 +187,7 @@ def generateHeader(valuesOrEnumTypes, constantPools=None, namespace=None, define
     from . import constants  # Avoid circular dependencies
 
     # massage arguments
-    if isinstance(valuesOrEnumTypes, values.Value):
+    if isinstance(valuesOrEnumTypes, namedstruct.values.Value):
         valuesOrEnumTypes = [valuesOrEnumTypes]
     if constantPools is None:
         constantPools = []
