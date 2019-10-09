@@ -1,10 +1,16 @@
+from __future__ import absolute_import
 from builtins import str
 from builtins import range
-# from past.builtins import basestring
+from builtins import bytes
 import math
 import struct
 import unittest
 
+# TODO: Remove this once migration is completed
+import sys
+import namedstruct.compat
+if sys.version_info.major >= 3:
+    unicode = str
 
 # returns the number of bits required to store the number
 # 0 -> 0, 255 -> 8, 256 -> 9
@@ -37,7 +43,7 @@ def toBits(number, numBits=None):
 # takes an array of bits, and returns them as a string (i.e. char array)
 # this operation should be indemptotent, i.e. a string will be returned as is
 def packBitsToChars(bits):
-    if isinstance(bits, str):
+    if isinstance(bits, (str, unicode)): # Bytes is safe, by definition
         for c in bits:
             if ord(c) < 0 or ord(c) > 255:
                 raise Exception("blob strings myst be made of 8-bit chars, but found " + repr(c))
@@ -57,7 +63,7 @@ def packBitsToChars(bits):
     if numBits > 0:
         result.append(c)
     bitsToChar = struct.pack("<" + str(len(result)) + "B", *bytes(result))
-    arrayOfIndividualBytes = [bytes([charValue]) for charValue in bitsToChar]
+    arrayOfIndividualBytes = [bytes([namedstruct.compat.ord_if_needed(charValue)]) for charValue in bitsToChar]
     return arrayOfIndividualBytes
 
 

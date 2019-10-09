@@ -4,15 +4,23 @@ from __future__ import division
 from builtins import str
 from builtins import range
 from builtins import object
+from builtins import bytes
 import array
 import numbers
+import collections
 
-from . import bithelper
-from . import constants
-from . import namedstruct
-from . import stringhelper
-from . import n_types
+import namedstruct.bithelper
+import namedstruct.constants
+import namedstruct.namedstruct
+import namedstruct.stringhelper
+import namedstruct.n_types
 
+
+# TODO: Remove once Python 3 migration is completed
+import sys
+import namedstruct.compat
+if sys.version_info.major >= 3:
+    unicode = str
 
 # given a python object, will return a reasonable Value for it
 # Value   -> returns the argument
@@ -25,14 +33,14 @@ def getValue(value):
         return value
     elif isinstance(value, numbers.Integral):
         return Int(value)
-    elif isinstance(value, str):
+    elif isinstance(value, (str, unicode, bytes)):
         return String(value)
     elif value is None:
         return Null()
     elif hasattr(value, "__iter__"):
         return getArrayValue(value)
     else:
-        raise Exception("can't convert " + str(value) + " to a Value")
+        raise Exception("can't convert %r, of type %s to a Value" % (value, type(value).__name__))
 
 
 # given an array, will return a reasonable array value for it, i.e. makes a Value array by turning
@@ -41,8 +49,8 @@ def getArrayValue(arrayValues, fixedSize=None):
     arrayValues = [getValue(v) for v in arrayValues]
     t = arrayValues[0].getType()
     for v in arrayValues[1:]:
-        t = n_types.mergeTypes(t, v.getType())
-    if isinstance(t, n_types.ReferenceType):
+        t = namedstruct.n_types.mergeTypes(t, v.getType())
+    if isinstance(t, namedstruct.n_types.ReferenceType):
         raise Exception("can't build arrays out of references")
     if t.isImmediate():  # elements are immediate - just build simple array
         return SimpleArray(t, arrayValues, fixedSize)
@@ -76,7 +84,7 @@ class Value(object):
         return int(self.type.getWidth())
 
 
-# primitve value
+# primitive value
 class PrimitiveValue(Value):
     def __init__(self, valueType, pythonValue):
         Value.__init__(self, valueType)
@@ -100,7 +108,7 @@ class PrimitiveValue(Value):
 # integer value
 class Int(PrimitiveValue):
     def __init__(self, intValue, unsigned=False, bitWidth=32):
-        valueType = n_types.IntType(unsigned, bitWidth)
+        valueType = namedstruct.n_types.IntType(unsigned, bitWidth)
         valueType.assertValueHasType(intValue)
         PrimitiveValue.__init__(self, valueType, intValue)
     
@@ -117,18 +125,18 @@ class Padding(Int):
 # a single char
 class Char(PrimitiveValue):
     def __init__(self, char):
-        charType = n_types.CharType()
+        charType = namedstruct.n_types.CharType()
         char = bytes(char, 'utf-8')
         PrimitiveValue.__init__(self, charType, char)
     
     def getLiteral(self):
-        return stringhelper.literalFromString(self.getPythonValue().decode('utf-8'), quote="'")
+        return namedstruct.stringhelper.literalFromString(self.getPythonValue().decode('utf-8'), quote="'")
 
 
 # an integer that acts as a bit field
 class BitField(Value):
     def __init__(self, name, bitWidth=32):
-        super(BitField, self).__init__(n_types.BitFieldType(name, bitWidth))
+        super(BitField, self).__init__(namedstruct.n_types.BitFieldType(name, bitWidth))
         self.values = []
     
     def add(self, name, value, bitWidth=1):
@@ -140,7 +148,7 @@ class BitField(Value):
         return self
     
     def addSigned(self, name, value, bitWidth):
-        if not (bithelper.zigZagEncode(value) < 2 ** bitWidth):
+        if not (namedstruct.bithelper.zigZagEncode(value) < 2 ** bitWidth):
             raise Exception("bitfield %s cannot store signed (%s, %d, bitWidth=%d)"
                             % (self.type.name, name, value, bitWidth))
         self.type.addSigned(name, bitWidth)
@@ -167,11 +175,11 @@ class BitField(Value):
         nameLen = max(len(field.name) for field in self.type.fieldArray) if len(self.values) > 0 else 0
         for _, _ in enumerate(self.values):
             result += ("\n{name:" + str(nameLen) + "}:{type}{separator}{bitWidth:<2} = {value}")
-        result = result.replace("\n", "\n" + stringhelper.indent)
+        result = result.replace("\n", "\n" + namedstruct.stringhelper.indent)
         result += "\n}"
         return result
     
-    # packs this bietfield into an integer
+    # packs this bitfield into an integer
     def packToInt(self):
         value = 0
         shift = 0
@@ -180,11 +188,11 @@ class BitField(Value):
             if field.type == 'u':
                 storeValue = int(v)
             elif field.type == 'i':
-                storeValue = int(bithelper.zigZagEncode(v))
+                storeValue = int(namedstruct.bithelper.zigZagEncode(v))
             else:
                 storeValue = int(v.getPythonValue())
                 if field.type.hasNegativeValues():
-                    storeValue = int(bithelper.zigZagEncode(storeValue))
+                    storeValue = int(namedstruct.bithelper.zigZagEncode(storeValue))
             value |= storeValue << shift
             shift = shift + field.bitWidth
         return value
@@ -196,7 +204,7 @@ class BitField(Value):
     def __repr__(self):
         return (
             self.pretty()
-                .replace("\n" + stringhelper.indent, ",")
+                .replace("\n" + namedstruct.stringhelper.indent, ",")
                 .replace(" ", "")
                 .replace("\n", "")
                 .replace("{,", "{")
@@ -208,7 +216,7 @@ class BitField(Value):
 
 class Null(Value):
     def __init__(self):
-        Value.__init__(self, n_types.NullType())
+        Value.__init__(self, namedstruct.n_types.NullType())
     
     def pretty(self):
         return "<NULL>"
@@ -228,12 +236,12 @@ class Reference(Value):
         if targetValue is None:
             targetValue = Null()
         targetValue = getValue(targetValue)
-        Value.__init__(self, n_types.ReferenceType(targetValue.type, referenceBitWidth=referenceBitWidth))
+        Value.__init__(self, namedstruct.n_types.ReferenceType(targetValue.type, referenceBitWidth=referenceBitWidth))
         self.targetValue = targetValue
     
     def pretty(self):
         return ("->" +
-                (self.targetValue.pretty().replace("\n", stringhelper.indent + "\n")
+                (self.targetValue.pretty().replace("\n", namedstruct.stringhelper.indent + "\n")
                  if self.targetValue is not None else
                  "None"))
     
@@ -249,7 +257,7 @@ class Reference(Value):
             # add padding bytes until data offset is aligned with target type
             padding = int(((-dataOffset) % self.type.targetType.getAlignment()))
             packedReference = self.type.referenceType.pack(dataOffset + padding)
-            packedData = b"\x00" * padding + namedstruct.pack(self.targetValue, addPadding=False)
+            packedData = b"\x00" * padding + namedstruct.namedstruct.pack(self.targetValue, addPadding=False)
             return packedReference, packedData
 
 
@@ -310,13 +318,13 @@ class Array(Value):
 # c array - either variable length, or fixed length
 class SimpleArray(Array):
     def __init__(self, elementType, values, fixedSize=None, byteAlignment=None):
-        if isinstance(elementType, n_types.ReferenceType):
+        if isinstance(elementType, namedstruct.n_types.ReferenceType):
             raise Exception("simple arrays cannot store references")
         if fixedSize is not None:
             assert (len(values) <= fixedSize)
         self.fixedSize = fixedSize
 
-        Array.__init__(self, n_types.SimpleArrayType(elementType, fixedSize, byteAlignment), values)
+        Array.__init__(self, namedstruct.n_types.SimpleArrayType(elementType, fixedSize, byteAlignment), values)
     
     def getImmediateDataSize(self):
         return int((self.type.getElementType().getWidth()
@@ -337,20 +345,20 @@ class SimpleArray(Array):
 # c array of chars - arbitrary strings get converted to utf-8
 class String(SimpleArray):
     def __init__(self, string="", fixedSize=None, omitTerminal=False):
-        chars = stringhelper.stringToChars(string)
+        chars = namedstruct.stringhelper.stringToChars(string)
         if omitTerminal:
             chars = chars[:-1]
-        SimpleArray.__init__(self, n_types.CharType(), chars, fixedSize)
+        SimpleArray.__init__(self, namedstruct.n_types.CharType(), chars, fixedSize)
         self.string = string
     
     def pretty(self):
-        return stringhelper.cutStringIfTooLong(repr(self.string))
+        return namedstruct.stringhelper.cutStringIfTooLong(repr(self.string))
     
     def getPythonValue(self):
         return self.string
     
     def getLiteral(self):
-        return stringhelper.literalFromString(self.string)
+        return namedstruct.stringhelper.literalFromString(self.string)
 
 
 # c array of chars - but inputs as arrays of 0/1 (bit) values, packed into 8 bits per char
@@ -358,21 +366,21 @@ blobStrings = []
 
 
 class Blob(SimpleArray):
-    # the alignment is 4 bytes by default, which can be overriden
+    # the alignment is 4 bytes by default, which can be overridden
     def __init__(self, blob, fixedSize=None, byteAlignment=4):
         global blobStrings
         blobStrings.append(blob)
-        if isinstance(blob, str):
-            bitArrays = [bithelper.toBits(ord(c), numBits=8) for c in blob]
+        if isinstance(blob, (str, unicode, bytes)):
+            bitArrays = [namedstruct.bithelper.toBits(namedstruct.compat.ord_if_needed(c), numBits=8) for c in blob]
             blob = []
             for bitArray in bitArrays:
                 blob.extend(bitArray)
         blob = array.array('B', blob)  # turn blob into an actual binary array - if it's not a string
-        SimpleArray.__init__(self, n_types.CharType(), bithelper.packBitsToChars(blob), fixedSize, byteAlignment)
+        SimpleArray.__init__(self, namedstruct.n_types.CharType(), namedstruct.bithelper.packBitsToChars(blob), fixedSize, byteAlignment)
         self.blob = blob
     
     def pretty(self):
-        return stringhelper.cutStringIfTooLong("[" + ''.join(str(b) for b in self.blob[0:200]) + "]",
+        return namedstruct.stringhelper.cutStringIfTooLong("[" + ''.join(str(b) for b in self.blob[0:200]) + "]",
                                                length=len(self.blob))
     
     def getPythonValue(self):
@@ -397,10 +405,10 @@ class ReferenceArray(Array):
                 raise Exception("reference array needs to be constructed from Value elements")
             if isinstance(v, Reference):
                 raise Exception("cannot store references in reference array")
-            elementType = n_types.mergeTypes(v.getType(), elementType)
+            elementType = namedstruct.n_types.mergeTypes(v.getType(), elementType)
             targetValues.append(v)
         referenceValues = [Reference(v, referenceBitWidth) for v in targetValues]
-        Array.__init__(self, n_types.ReferenceArrayType(elementType, fixedSize, referenceBitWidth), referenceValues)
+        Array.__init__(self, namedstruct.n_types.ReferenceArrayType(elementType, fixedSize, referenceBitWidth), referenceValues)
     
     def getImmediateDataSize(self):
         return int((self.type.getElementType().getWidth()
@@ -430,7 +438,7 @@ class ReservedValue(SimpleArray):
 
 class EnumValue(Value):
     def __init__(self, enumType, name):
-        assert isinstance(enumType, n_types.EnumType)
+        assert isinstance(enumType, namedstruct.n_types.EnumType)
         assert name in enumType.mapping
         super(EnumValue, self).__init__(enumType)
         self.name = name
@@ -460,9 +468,9 @@ class EnumValue(Value):
 
 # struct value
 # structs don't have fixed width unless they are closed/finished
-class Struct(Value, constants.AddConstantFunctions):
+class Struct(Value, namedstruct.constants.AddConstantFunctions):
     def __init__(self, name):
-        structType = n_types.StructType(name)
+        structType = namedstruct.n_types.StructType(name)
         Value.__init__(self, structType)
         self.values = []  # list of member values
     
@@ -588,7 +596,7 @@ class Struct(Value, constants.AddConstantFunctions):
     # if fixed with is True, will add a fixed width string inside the the struct, otherwise a 
     # a reference to a variable length string.
     # If omit terminal is true, will omit the '\0' terminal character at the end of the string.
-    # reference bit width allows overriding the bit widh of the reference (byte offset) used,
+    # reference bit width allows overriding the bit width of the reference (byte offset) used,
     # if the string is not stored as an immediate value.
     # returns self
     def addString(self, name, string, fixedWidth=None, omitTerminal=False, referenceBitWidth=32):
@@ -596,7 +604,7 @@ class Struct(Value, constants.AddConstantFunctions):
         if string is None:
             if fixedWidth is not None:
                 raise Exception("cannot add fixed with string as a null-reference")
-            self.addImmediate(name, Reference(None, targetType=n_types.SimpleArrayType(n_types.CharType())))
+            self.addImmediate(name, Reference(None, targetType=namedstruct.n_types.SimpleArrayType(namedstruct.n_types.CharType())))
         else:
             self.addReference(name, String(string, fixedWidth, omitTerminal), referenceBitWidth)
         return self
@@ -642,7 +650,7 @@ class Struct(Value, constants.AddConstantFunctions):
             offset, memberType, name = self.type.getMember(i)
             typeName = repr(memberType)
             result += ("\n{pos:02}: {type} " + (" " * (length - len(typeName))) + "{name}=")
-        result = result.replace("\n", "\n" + stringhelper.indent)
+        result = result.replace("\n", "\n" + namedstruct.stringhelper.indent)
         result += "\n}"
         return result
     
@@ -700,7 +708,7 @@ class Struct(Value, constants.AddConstantFunctions):
 # an array of bitfield values, with variable number of bits
 class BitFieldArray(Value):
     def __init__(self, name, *fields):
-        super(BitFieldArray, self).__init__(n_types.BitFieldArrayType(name, fields))
+        super(BitFieldArray, self).__init__(namedstruct.n_types.BitFieldArrayType(name, fields))
         self.entries = []  # each entry is an array of (isBlob,value)
     
     def __repr__(self):
@@ -759,7 +767,7 @@ class BitFieldArray(Value):
         return [
             max(len(entry[fieldIndex][1].getPythonValue())
                 if entry[fieldIndex][0] else
-                bithelper.requiredBits(entry[fieldIndex][1])
+                namedstruct.bithelper.requiredBits(entry[fieldIndex][1])
                 for entry in self.entries)
             for fieldIndex in range(len(fields))]
     
@@ -767,8 +775,8 @@ class BitFieldArray(Value):
         fields = self.type.getFields()
         fieldLengths = self.getFieldLengths()
         result = "bitFieldArray[{length}x{numBits}]{{".format(length=len(self.entries), numBits=sum(fieldLengths))
-        rows = [stringhelper.indent + s + ":" for s in stringhelper.getColumn(fields)]
-        rows = [rows[i] + s + " = [" for i, s in enumerate(stringhelper.getColumn(fieldLengths))]
+        rows = [namedstruct.stringhelper.indent + s + ":" for s in namedstruct.stringhelper.getColumn(fields)]
+        rows = [rows[i] + s + " = [" for i, s in enumerate(namedstruct.stringhelper.getColumn(fieldLengths))]
         maxColumnWidth = 80
         maxEntryWidth = 12
         numEntries = len(self.entries)
@@ -783,7 +791,7 @@ class BitFieldArray(Value):
                     values.append(blob)
                 else:
                     values.append(value)
-            strings = stringhelper.getColumn(values)
+            strings = namedstruct.stringhelper.getColumn(values)
             # stop if rows grow too big
             if len(rows[0]) + 1 + len(strings[0]) > maxColumnWidth:
                 if i < numEntries:
@@ -805,7 +813,7 @@ class BitFieldArray(Value):
         fieldLengths = self.getFieldLengths()
         offset = (len(fieldLengths) + 2) * 16
         headerValues = [sum(fieldLengths)] + [offset + sum(fieldLengths[:i]) for i in range(len(fieldLengths) + 1)]
-        header = namedstruct.pack(SimpleArray(n_types.UINT16, headerValues), addPadding=False)
+        header = namedstruct.pack(SimpleArray(namedstruct.n_types.UINT16, headerValues), addPadding=False)
         # create data blob
         blob = array.array('B', [])
         for entry in self.entries:
@@ -815,10 +823,31 @@ class BitFieldArray(Value):
                     blob.extend(b)
                     blob.extend((fieldLengths[i] - len(b)) * array.array('B', [0]))
                 else:
-                    blob.extend(array.array('B', bithelper.toBits(value, fieldLengths[i])))
+                    blob.extend(array.array('B', namedstruct.bithelper.toBits(value, fieldLengths[i])))
         data = namedstruct.pack(Blob(blob), addPadding=False)
         assert (len(blob) == sum(fieldLengths) * len(self.entries))
         return header + data, ""
+
+
+def map_bitfieldarray(typename, iterator, map_fn=lambda x: x, debug=True):
+    """
+    Creates a BitFieldArray from an iterable by applying the same map function to each element. The schema of the
+    BitFieldArray is taken from the fields returned by the map function.
+
+    :param typename: The name of the resultant BitFieldArray
+    :param iter: An iterable (e.g. a list)
+    :param map_fn: A function mapping elements of the iterable to a BitFieldArray element
+    :param debug: Print a summary of the bitfieldarray's contents
+    :return: A BitFieldArray
+    """
+    structs = list(map(lambda elm: collections.OrderedDict(map_fn(elm)), iterator))
+    array = (BitFieldArray(typename, *structs[0].keys())
+             .addAll([struct.values() for struct in structs]))
+
+    if debug:
+        print("  " + array.pretty().replace("\n", "\n  "))
+
+    return array
 
 
 # if value is a dictionary, returns value[name], otherwise returns value
@@ -826,7 +855,7 @@ def dictGet(value, name):
     if isinstance(value, dict):
         # Help pycharm figuring it out it's a dict
         """:type :dict"""
-        dictionnary = value
-        return dictionnary[name]
+        dictionary = value
+        return dictionary[name]
     else:
         return value
