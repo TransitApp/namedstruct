@@ -7,6 +7,8 @@ import os
 
 import sys
 
+print(sys.path)
+
 from .namedstruct import pack
 from .values import *
 from . import n_types, constants
