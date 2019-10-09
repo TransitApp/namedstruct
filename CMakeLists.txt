@@ -32,7 +32,7 @@ if(APPLE AND ${CMAKE_VERSION} VERSION_GREATER 3.8.2016 AND XCTest_FOUND)
      add_custom_command(
         OUTPUT ${PROJECT_SOURCE_DIR}/localTestFiles src/namedStructTests.h
         WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-        COMMAND ${RESET_IOS_ENV} && pypy3 calm_down.py tests.py
+        COMMAND ${RESET_IOS_ENV} && pypy3 -m pytest tests.py
      )
 
     xctest_add_test(XCTest.namedstructTests namedstructTests)
