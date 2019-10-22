@@ -829,7 +829,7 @@ class BitFieldArray(Value):
         return header + data, ""
 
 
-def map_bitfieldarray(typename, iterator, map_fn=lambda x: x, debug=True):
+def map_bitfieldarray(typename, iterator, map_fn=lambda x: x, debug=True, non_varargs=False):
     """
     Creates a BitFieldArray from an iterable by applying the same map function to each element. The schema of the
     BitFieldArray is taken from the fields returned by the map function.
@@ -838,9 +838,10 @@ def map_bitfieldarray(typename, iterator, map_fn=lambda x: x, debug=True):
     :param iter: An iterable (e.g. a list)
     :param map_fn: A function mapping elements of the iterable to a BitFieldArray element
     :param debug: Print a summary of the bitfieldarray's contents
+    :param non_varargs: Do not automatically spread iterable arguments
     :return: A BitFieldArray
     """
-    structs = list(map(lambda elm: collections.OrderedDict(map_fn(elm)), iterator))
+    structs = list(map(lambda elm: collections.OrderedDict(call_map_varargs(map_fn, elm, non_varargs)), iterator))
     array = (BitFieldArray(typename, *structs[0].keys())
              .addAll([struct.values() for struct in structs]))
 
@@ -848,6 +849,14 @@ def map_bitfieldarray(typename, iterator, map_fn=lambda x: x, debug=True):
         print("  " + array.pretty().replace("\n", "\n  "))
 
     return array
+
+
+def call_map_varargs(map_fn, elm, non_varargs):
+    spread = not non_varargs and isinstance(elm, tuple)
+    if spread:
+        return map_fn(*elm)
+    else:
+        return map_fn(elm)
 
 
 # if value is a dictionary, returns value[name], otherwise returns value
