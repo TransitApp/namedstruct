@@ -8,7 +8,7 @@ import os
 import sys
 
 print(sys.path)
-print('YO YO YO YO', os.isatty())
+print('YO YO YO YO', sys.stdout.isatty(), sys.stdin.isatty())
 
 from .namedstruct import pack
 from .values import *
