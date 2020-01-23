@@ -13,7 +13,7 @@
 #include "stdint.h"
 #include "namedStructTests.h"
 #include "XCTestCpp.h"
-#include "bits.h"
+#include <namedstruct/bits.h>
 #include <vector>
 #include <iostream>
 
