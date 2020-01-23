@@ -218,7 +218,7 @@ def generateHeader(valuesOrEnumTypes, constantPools=None, namespace=None, define
 #ifndef {define}
 #define {define}
 #include <stdint.h>
-#include "bits.h"
+#include <namedstruct/bits.h>
 
 {namespaceString}""".format(define=define, namespaceString=namespaceString)
     currentIndent = "" if namespace is None else indent
