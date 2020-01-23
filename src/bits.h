@@ -21,6 +21,9 @@
 
 namespace namedstruct {
     /* Documentation **********************************************************************/
+    /** extracts the numBits least-significant bits from a word. */
+    static inline uint32_t getLSB(uint32_t word, int numBits);
+
     /**
      reads numBits bits bitOffset bits away from data and returns it as an uint32.
      numBits has to be <= 31. Will always access the 32-bit memory value that this points to. */
@@ -81,31 +84,66 @@ namespace namedstruct {
     
     class BitReader {
     public:
-        inline BitReader(const void* newData, int bitOffset = 0){
+        inline explicit BitReader() {}
+
+        inline BitReader(const void* newData, int bitOffset = 0) {
+            reset(newData, bitOffset);
+        }
+
+        inline void reset(const void* newData, int bitOffset = 0) {
             this->pData = newData;
             startReadBits(this->pData, bitOffset, currentWord, bitsLeft);
         }
+
         inline uint32_t readNextBit() {
             return namedstruct::readNextBit(pData, currentWord, bitsLeft);
         }
+
+        /** The call operator is an alias for readNextBit. */
+        inline auto operator()() {
+            return readNextBit();
+        }
+
         inline uint32_t readNextBits(int numBits) {
             return namedstruct::readNextBits(pData, currentWord, bitsLeft, numBits);
         }
+
+        template <typename T> inline T readNextBits(int numBits) {
+            return static_cast<T>(namedstruct::readNextBits(pData, currentWord, bitsLeft, numBits));
+        }
+
         inline void skipBits(int numBits) {
             namedstruct::skipNextBits(pData, currentWord, bitsLeft, numBits);
         }
+
         inline int getBitOffset(const void* originalData) {
             return namedstruct::getBitOffset(originalData, pData, bitsLeft);
         }
+
+        inline const void* getCurrentDataPointer() const {
+            return pData;
+        }
+
+        inline int getBitsLeft() const {
+            return bitsLeft;
+        }
+
+        inline uint32_t getCurrentWord() const {
+            return currentWord;
+        }
+
     private:
         const void* pData;
         int bitsLeft;
         uint32_t currentWord;
     };
-    
-    
-    
+
     /* Implementations *****************************************************************/
+    static inline uint32_t getLSB(uint32_t word, int numBits) {
+        // TODO: use BEXTR on Intel and UBFX on ARM
+        return numBits >= 32 ? word : word & ((static_cast<uint32_t>(1) << numBits) - 1);
+    }
+
     static inline uint32_t readBits(const void* pData, int bitOffset, int numBits) {
         uint32_t* pFirst = (((uint32_t*)pData)+(bitOffset>>5));
         int bitAddress = bitOffset & 0x1F;
@@ -113,9 +151,9 @@ namespace namedstruct {
         uint32_t second = ((bitAddress + numBits > 32)?
                            (*(++pFirst) << (32-bitAddress))
                            :0);
-        return (first | second) & (((uint32_t)1 << numBits) - 1);
+        return getLSB(first | second, numBits);
     }
-    
+
     static inline void startReadBits(const void* &pData,int bitOffset,
                                      uint32_t &currentWord, int &currentBitsLeftInWord) {
         pData = (void*)(((uint32_t*)pData)+(bitOffset>>5)); //get pointer to the correct location
@@ -136,17 +174,14 @@ namespace namedstruct {
             pData = (void*)((uint32_t*)pData+1); //advance pointer
             uint32_t nextWord = *(uint32_t*)pData;
             numBits = numBits - currentBitsLeftInWord; //number of bits needed from the new word
-            uint32_t bitMask = (((uint32_t)1 << numBits) - 1);
-            uint32_t result = (currentWord |
-                               ((nextWord & bitMask) << currentBitsLeftInWord));
+            uint32_t result = (currentWord | (getLSB(nextWord, numBits) << currentBitsLeftInWord));
             currentWord = nextWord >> numBits;
             currentBitsLeftInWord = 32 - numBits;
             return result;
         }
         else {
             // data is contained in current word alone
-            uint32_t bitMask = (((uint32_t)1 << numBits) - 1);
-            uint32_t result = currentWord & bitMask; // this is why 32bits don't work
+            uint32_t result = getLSB(currentWord, numBits); // this is why 32bits don't work
             currentBitsLeftInWord -= numBits;
             currentWord >>= numBits;
             return result;
@@ -181,7 +216,7 @@ namespace namedstruct {
          readNextBit(pData,currentWord,currentBitsLeftInWord);
          }*/
     }
-    
+
     static inline void startReversedReadBits(const void* &pData,int bitOffset,
                                              uint32_t &currentWord,
                                              int &currentBitsLeftInWord) {
