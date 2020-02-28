@@ -842,6 +842,10 @@ def map_bitfieldarray(typename, iterator, map_fn=lambda x: x, debug=True, non_va
     :return: A BitFieldArray
     """
     structs = list(map(lambda elm: collections.OrderedDict(call_map_varargs(map_fn, elm, non_varargs)), iterator))
+
+    if not structs:
+        return Reference(None)
+
     array = (BitFieldArray(typename, *structs[0].keys())
              .addAll([struct.values() for struct in structs]))
 
