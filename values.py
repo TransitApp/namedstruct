@@ -487,7 +487,17 @@ class Struct(Value, namedstruct.constants.AddConstantFunctions):
     def addConstant(self, name, value):
         self.getType().addConstant(name, value)
         return self
-    
+
+    def addEnumType(self, enum_type, value_type=namedstruct.n_types.UINT32):
+        """
+        Add an enum type to the struct that is independent of any values in the struct.
+        enum_type: A class inheriting from enum.IntEnum
+        value_type: The underlying data type for enum constants
+        """
+        members = {constant: int(value) for constant, value in enum_type.__members__.items()}
+        self.getType().types.append(namedstruct.n_types.EnumType(enum_type.__name__, value_type, members))
+        return self
+
     def getPythonValue(self):
         return self  # struct is a container, so it's not a python value
     
