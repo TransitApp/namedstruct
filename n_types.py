@@ -212,12 +212,11 @@ class CharType(IntType):
 
 
 CHAR = CharType()
-
+Field = collections.namedtuple("Field", ["name", "type", "bitWidth"])
 
 # bit fields
 class BitFieldType(Type):
-    Field = collections.namedtuple("FieldType", ["name", "type", "bitWidth"])
-    
+    Field = Field
     def __init__(self, name, totalBitWidth=32):
         super(BitFieldType, self).__init__()
         self.dataType = IntType(True, totalBitWidth)
@@ -609,7 +608,12 @@ class EnumType(Type):
         return self.values[key]
     
     def __getattr__(self, item):
-        return self.values[item]
+        if item == '__getstate__':
+            return super().__getstate__
+        elif item == '__setstate__':
+            return super().__setstate__
+        else:
+            return self.values[item]
     
     def getEnumType(self):
         return self.enumType
