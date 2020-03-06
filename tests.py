@@ -13,6 +13,12 @@ from .namedstruct import pack
 from .values import *
 from . import n_types, constants
 
+TEST_CONSTANTS = {
+        'TEST_CONSTANT_1': 42,
+        'TEST_CONSTANT_2': 'something',
+        '_TEST_CONSTANT_3': lambda x: x # must be ignored
+}
+
 # TODO
 # - test equality operators:
 #     bitfields
@@ -105,7 +111,8 @@ def generateTests():
         .addInt32Constant("EVERYTHING", 43)
         .addConstant("FOO", 0)
         .addConstant("LABEL", "this is a label")
-        .addConstant("QUOTE", '"'))
+        .addConstant("QUOTE", '"')
+        .addConstants(TEST_CONSTANTS))
 
     add(Struct("testStruct11")
         .addInt32("value", 1)

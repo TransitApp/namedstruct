@@ -6,8 +6,8 @@ from builtins import range
 from builtins import object
 from builtins import bytes
 import array
-import numbers
 import collections
+import numbers
 
 import namedstruct.bithelper
 import namedstruct.constants
@@ -486,6 +486,18 @@ class Struct(Value, namedstruct.constants.AddConstantFunctions):
     
     def addConstant(self, name, value):
         self.getType().addConstant(name, value)
+        return self
+
+    def addConstants(self, dictionary, ignore_private_symbols=True):
+        """
+        Adds all constants from a dictionary
+        ignore_private_symbols: ignore symbols whose names start with an underscore
+        """
+        for name, value in dictionary.items():
+            if ignore_private_symbols and name.startswith('_'):
+                continue
+            self.addConstant(name, value)
+
         return self
 
     def addEnumType(self, enum_type, value_type=namedstruct.n_types.UINT32):
