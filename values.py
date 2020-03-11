@@ -22,6 +22,8 @@ import namedstruct.compat
 if sys.version_info.major >= 3:
     unicode = str
 
+PACK_IN_DECLARED_ORDER = 0
+
 # given a python object, will return a reasonable Value for it
 # Value   -> returns the argument
 # int     -> int32 value
@@ -29,9 +31,7 @@ if sys.version_info.major >= 3:
 # None    -> Null value
 # an iterable -> an array value, using getValue on the elements
 def getValue(value):
-    print('ooooh', value, type(value).__bases__, Value)
     if isinstance(value, Value):
-        print('HUH?')
         return value
     elif isinstance(value, numbers.Integral):
         return Int(value)
@@ -227,11 +227,18 @@ class Null(Value):
         return None
 
 
-# reference value
 class Reference(Value):
-    # a target of None is allowed - in that case (and only that case) target type may be set
-    def __init__(self, targetValue, referenceBitWidth=32, targetType=None, pack_order=0):
-        """:type targetValue: any"""
+    """
+    Reference to another Value
+    """
+    def __init__(self, targetValue, referenceBitWidth=32, targetType=None, pack_order=PACK_IN_DECLARED_ORDER):
+        """
+        :param targetValue: The value to reference. May be None.
+        :param referenceBitWidth: The number of bits to use for the pointer to this value
+        :param targetType: The type of targetValue (may be specified only for null references, other cases are inferred)
+        :param pack_order: When added to a struct, controls the order in which the targetValues are packed; the order
+        of the Reference itself is fixed based on the type definition of the struct. Should generally be left unspecified.
+        """
 
         if targetValue is not None and targetType is not None:
             raise Exception("cannot set target type for non-null reference")
@@ -463,7 +470,7 @@ class EnumValue(Value):
         return int(self.type.getEnumType().getWidth())
     
     def pack(self, data_offset=None):
-        return self.type.mapping[self.name].pack(data_offset=data_offset)
+        return self.type.mapping[self.name].pack()
     
     def __repr__(self):
         return "%s.%s" % (self.type, self.name)
@@ -530,13 +537,25 @@ class Struct(Value, namedstruct.constants.AddConstantFunctions):
     # if value is a dictionary, will add value[name]
     # if the value is a Value, will add the value with the type
     # otherwise it will attempt to turn the value into a value using "getValue"
-    def add(self, name, value, pack_order=0):
+    def add(self, name, value, pack_order=PACK_IN_DECLARED_ORDER):
+        """
+        Adds a value to the struct. The type of this value is also added to the struct type.
+        If value is a dictionary, value[name] is implicitly added instead.
+        getValue() is used to convert the provided value to the appropriate namedstruct data type.
+        :param name: The name of the struct member
+        :param value: The value to add, or a dictionary containing an entry matching name
+        :param pack_order: Controls the order in which referred data (e.g. content of a struct) of the member is packed
+         into the struct. If unspecified, the order in which the member was added is used. This is also used as a
+         secondary key when two members have the same pack_order. Throws an exception if there is no referred data (e.g.
+         ints).
+        """
         value = getValue(dictGet(value, name))
         if value.getType().isImmediate():
             if pack_order != 0:
-                print('NO! Doing this to an immediate would move it around!')
-                raise SystemExit
-
+                # pack_order only affects the location of the referred data, which does not exist for immediate values,
+                # e.g. ints. The immediate value itself cannot be moved without changing the definition of the struct
+                # data type, therefore this option has no effect.
+                raise Exception("pack_order has no effect on immediate values, and must be removed.")
             self.addImmediate(name, value)
         else:
             self.addReference(name, value, pack_order=pack_order)
@@ -544,31 +563,29 @@ class Struct(Value, namedstruct.constants.AddConstantFunctions):
     
     # will add a reference to the given value to this struct
     # if the type is defined, and value=None allows adding a typed reference even if the value is Null
-    def addReference(self, name, value, referenceBitWidth=32, targetType=None, pack_order=0):
+    def addReference(self, name, value, referenceBitWidth=32, targetType=None, pack_order=PACK_IN_DECLARED_ORDER):
         if targetType is not None:
             if value is not None:
                 raise Exception("can only override reference type for Null Value")
-            # TODO: pack_order irrelevant for nullptr
             return self.addImmediate(name, Reference(None, referenceBitWidth, targetType=targetType))
         return self.addImmediate(name, Reference(value, referenceBitWidth, pack_order=pack_order))
     
     # short hand for addReference(name,None,referenceBitWidth,targetType)
     def addNullReference(self, name, targetType, referenceBitWidth=32):
-        # TODO: Irrelevant for nullptr
         return self.addImmediate(name, Reference(None, referenceBitWidth, targetType=targetType))
 
     # shorthand for addReference(name,value,referenceBitWidth=8,targetType=targetType)
-    def addRef8(self, name, value, targetType=None, pack_order=0):
+    def addRef8(self, name, value, targetType=None, pack_order=PACK_IN_DECLARED_ORDER):
         referenceBitWidth = 8
         return self.addReference(name, value, referenceBitWidth=referenceBitWidth, targetType=targetType, pack_order=pack_order)
     
     # shorthand for addReference(name,value,referenceBitWidth=16,targetType=targetType)
-    def addRef16(self, name, value, targetType=None, pack_order=0):
+    def addRef16(self, name, value, targetType=None, pack_order=PACK_IN_DECLARED_ORDER):
         referenceBitWidth = 16
         return self.addReference(name, value, referenceBitWidth=referenceBitWidth, targetType=targetType, pack_order=pack_order)
     
     # shorthand for addReference(name,value,referenceBitWidth=32,targetType=targetType)
-    def addRef32(self, name, value, targetType=None, pack_order=0):
+    def addRef32(self, name, value, targetType=None, pack_order=PACK_IN_DECLARED_ORDER):
         referenceBitWidth = 32
         return self.addReference(name, value, referenceBitWidth=referenceBitWidth, targetType=targetType, pack_order=pack_order)
     
@@ -613,10 +630,10 @@ class Struct(Value, namedstruct.constants.AddConstantFunctions):
     # will reference add a binary blob, either an array of 0/1 values, or a string, to the struct.
     # if 'aBlob' is a dictionary d, will add d[name] will store the the byte offset in the C struct,
     # using the name <name>+ByteOffset. If the name exists, will throw an error.
-    # Blobs will be word aligned by default, but that can be overriden.
+    # Blobs will be word aligned by default, but that can be overridden.
     # Blobs are stored little endian, i.e. [0,1,0,0,1,0,0,1]=0x92=146.
     # returns self
-    def addBlob(self, name, blob, referenceBitWidth=32, pack_order=0):
+    def addBlob(self, name, blob, referenceBitWidth=32, pack_order=PACK_IN_DECLARED_ORDER):
         self.addReference(name, Blob(dictGet(blob, name)), referenceBitWidth=referenceBitWidth, pack_order=pack_order)
         return self
     
@@ -630,12 +647,11 @@ class Struct(Value, namedstruct.constants.AddConstantFunctions):
     # reference bit width allows overriding the bit width of the reference (byte offset) used,
     # if the string is not stored as an immediate value.
     # returns self
-    def addString(self, name, string, fixedWidth=None, omitTerminal=False, referenceBitWidth=32, pack_order=0):
+    def addString(self, name, string, fixedWidth=None, omitTerminal=False, referenceBitWidth=32, pack_order=PACK_IN_DECLARED_ORDER):
         string = dictGet(string, name)
         if string is None:
             if fixedWidth is not None:
                 raise Exception("cannot add fixed with string as a null-reference")
-            # TODO: Irrelevant if none
             self.addImmediate(name, Reference(None, targetType=namedstruct.n_types.SimpleArrayType(namedstruct.n_types.CharType())))
         else:
             self.addReference(name, String(string, fixedWidth, omitTerminal), referenceBitWidth, pack_order=pack_order)
@@ -645,13 +661,12 @@ class Struct(Value, namedstruct.constants.AddConstantFunctions):
     # if value is a dictionary, will add value[name]
     # if the value is an array of Value objects, will add an array with the val
     # otherwise it will attempt to turn the value into a value using "getValue"
-    def addArray(self, name, arrayValues, fixedSize=None, pack_order=0):
+    def addArray(self, name, arrayValues, fixedSize=None, pack_order=PACK_IN_DECLARED_ORDER):
         arrayValues = dictGet(arrayValues, name)
         value = getArrayValue(arrayValues, fixedSize)
         if value.getType().isImmediate():
             if pack_order != 0:
-                print('NO NO  NO')
-                raise SystemExit
+                raise Exception("pack_order cannot be used when the array type is immediate.")
             self.addImmediate(name, value)
         else:
             self.addReference(name, value, pack_order=pack_order)
@@ -661,13 +676,13 @@ class Struct(Value, namedstruct.constants.AddConstantFunctions):
     # if value is a dictionary, will add value[name]
     # if the value is an array of Value objects, will add an array with the val
     # otherwise it will attempt to turn the value into a value using "getValue"
-    def addReferenceArray(self, name, arrayValues, fixedSize=None, referenceBitWidth=32, pack_order=0):
+    def addReferenceArray(self, name, arrayValues, fixedSize=None, referenceBitWidth=32, pack_order=PACK_IN_DECLARED_ORDER):
         arrayValues = dictGet(arrayValues, name)
         arrayValues = [getValue(v) for v in arrayValues]
         array = ReferenceArray(arrayValues, fixedSize, referenceBitWidth)
         if array.getType().isImmediate():
             if pack_order != 0:
-                print('NO NO  NO')
+                raise Exception('pack_order cannot be used when the array type is immediate.')
             self.addImmediate(name, array)
         else:
             self.addReference(name, array, pack_order=pack_order)
@@ -692,6 +707,9 @@ class Struct(Value, namedstruct.constants.AddConstantFunctions):
         return result
 
     def __pack_ordered_values(self):
+        """
+        :return: List[Tuple[order of immediate value, value]] sorted in order of referred value
+        """
         def key(item):
             i, value = item
             pack_order = value.pack_order if isinstance(value, Reference) else 0
