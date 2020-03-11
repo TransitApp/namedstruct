@@ -9,9 +9,9 @@ import sys
 
 print(sys.path)
 
-from .namedstruct import pack
-from .values import *
-from . import n_types, constants
+from namedstruct.values import *
+from namedstruct import values, n_types, constants
+from namedstruct.namedstruct import pack
 
 TEST_CONSTANTS = {
         'TEST_CONSTANT_1': 42,

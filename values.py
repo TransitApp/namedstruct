@@ -29,7 +29,9 @@ if sys.version_info.major >= 3:
 # None    -> Null value
 # an iterable -> an array value, using getValue on the elements
 def getValue(value):
+    print('ooooh', value, type(value).__bases__, Value)
     if isinstance(value, Value):
+        print('HUH?')
         return value
     elif isinstance(value, numbers.Integral):
         return Int(value)
@@ -65,10 +67,10 @@ class Value(object):
     def getType(self):
         return self.type
     
-    # returns a tuple of strings, the immediate data, and the offseted data, which is assumed to start at dataOffset
+    # returns a tuple of strings, the immediate data, and the offseted data, which is assumed to start at data_offset
     # the caller has to ensure proper alignment of the immediate data 
     # but the function will ensure alignment of the offseted data
-    def pack(self, dataOffset=None):
+    def pack(self, data_offset=None):
         raise Exception()
     
     def getPythonValue(self):  # will return a python value, basically what was used to create this
@@ -101,7 +103,7 @@ class PrimitiveValue(Value):
     def pretty(self):
         return repr(self.pythonValue)
     
-    def pack(self, dataOffset=None):
+    def pack(self, data_offset=None):
         return self.type.pack(self.pythonValue), b""
 
 
@@ -197,9 +199,9 @@ class BitField(Value):
             shift = shift + field.bitWidth
         return value
     
-    def pack(self, dataOffset=None):
+    def pack(self, data_offset=None):
         intPacked = self.packToInt()
-        return Int(intPacked, True, self.type.bitWidth).pack(dataOffset)
+        return Int(intPacked, True, self.type.bitWidth).pack(data_offset)
     
     def __repr__(self):
         return (
@@ -249,15 +251,15 @@ class Reference(Value):
     def getPythonValue(self):
         return self.targetValue.getPythonValue()
     
-    def pack(self, dataOffset=None):
-        if dataOffset is None:
+    def pack(self, data_offset=None):
+        if data_offset is None:
             raise Exception("cannot pack reference without a data offset (is the reference not contained in a struct?)")
         if self.targetValue.getPythonValue() is None:
             return self.type.referenceType.pack(0), b""
         else:
             # add padding bytes until data offset is aligned with target type
-            padding = int(((-dataOffset) % self.type.targetType.getAlignment()))
-            packedReference = self.type.referenceType.pack(dataOffset + padding)
+            padding = int(((-data_offset) % self.type.targetType.getAlignment()))
+            packedReference = self.type.referenceType.pack(data_offset + padding)
             packedData = b"\x00" * padding + namedstruct.namedstruct.pack(self.targetValue, addPadding=False)
             return packedReference, packedData
 
@@ -281,19 +283,19 @@ class Array(Value):
         return self.values
     
     # will pack the elements
-    def pack(self, dataOffset=None, elementOffsetsRelativeToElement=True):
-        if dataOffset is None:
-            dataOffset = self.getImmediateDataSize()
+    def pack(self, data_offset=None, elementOffsetsRelativeToElement=True):
+        if data_offset is None:
+            data_offset = self.getImmediateDataSize()
         immediateData = []
         offsetedData = []
         immediateLen = 0
         for value in self.values:
             if self.elementsAreValueObjects:
-                immediate, referred = value.pack(dataOffset -
+                immediate, referred = value.pack(data_offset -
                                                  (immediateLen
                                                   if elementOffsetsRelativeToElement else
                                                   0))  # offset is relative to element
-                dataOffset += len(referred)
+                data_offset += len(referred)
                 immediateData.append(immediate)
                 offsetedData.append(referred)
                 immediateLen += len(immediateData[-1])
@@ -331,13 +333,13 @@ class SimpleArray(Array):
         return int((self.type.getElementType().getWidth()
                 * (len(self.values) if self.fixedSize is None else self.fixedSize)))
     
-    def pack(self, dataOffset=None, elementOffsetsRelativeToElement=True):
-        immediateData, offsetData = Array.pack(self, dataOffset)  # call super pack
+    def pack(self, data_offset=None, elementOffsetsRelativeToElement=True):
+        immediateData, offsetData = Array.pack(self, data_offset)  # call super pack
         if self.fixedSize is not None:
             # fill the data with zero bytes 
             immediateData = (immediateData
                              + b"\x00" * (self.getImmediateDataSize() - len(immediateData)))
-        if dataOffset is None:
+        if data_offset is None:
             return immediateData + offsetData, b""
         else:
             return immediateData, offsetData
@@ -415,13 +417,13 @@ class ReferenceArray(Array):
         return int((self.type.getElementType().getWidth()
                 * (len(self.values) if self.fixedSize is None else self.fixedSize)))
     
-    def pack(self, dataOffset=None, elementOffsetsRelativeToElement=True):
-        if dataOffset is None:
-            dataOffset = self.getImmediateDataSize()
+    def pack(self, data_offset=None, elementOffsetsRelativeToElement=True):
+        if data_offset is None:
+            data_offset = self.getImmediateDataSize()
             combine = True
         else:
             combine = False
-        immediateData, offsetData = Array.pack(self, dataOffset, elementOffsetsRelativeToElement=False)
+        immediateData, offsetData = Array.pack(self, data_offset, elementOffsetsRelativeToElement=False)
         if self.fixedSize is not None:
             # fill the data with zero bytes 
             immediateData = (immediateData
@@ -460,8 +462,8 @@ class EnumValue(Value):
     def getImmediateDataSize(self):
         return int(self.type.getEnumType().getWidth())
     
-    def pack(self, dataOffset=None):
-        return self.type.mapping[self.name].pack(data_offset=dataOffset)
+    def pack(self, data_offset=None):
+        return self.type.mapping[self.name].pack(data_offset=data_offset)
     
     def __repr__(self):
         return "%s.%s" % (self.type, self.name)
@@ -705,7 +707,7 @@ class Struct(Value, namedstruct.constants.AddConstantFunctions):
             combine = False
 
         # Referred data (the actual content) is packed using the pack_order.
-        # The dataOffsets, and thus the value of the generated immediates (the references/pointers) to the data reflect
+        # The data_offsets, and thus the value of the generated immediates (the references/pointers) to the data reflect
         # this order.
         # Immediate data (the pointers to structs) is packed using the defined order, to respect the data type and padding.
         # If pack_order is inappropriately specified, you should get an exception. If I did it wrong, then it'll just
@@ -746,12 +748,12 @@ class Struct(Value, namedstruct.constants.AddConstantFunctions):
         # collect names/sizes
         names = []
         sizes = []
-        dataOffset = self.getImmediateDataSize()
+        data_offset = self.getImmediateDataSize()
         for i, value in enumerate(self.values):
-            immediate, referred = value.pack(dataOffset)
+            immediate, referred = value.pack(data_offset)
             names.append(self.type.getMember(i)[2])
             sizes.append(len(immediate) + len(referred))
-            dataOffset += len(referred)
+            data_offset += len(referred)
         total = "total:"
         maxNameLen = max([len(total)] + [len(name) for name in names]) + 1
         numLen = len(str(sum(sizes)))
@@ -869,7 +871,7 @@ class BitFieldArray(Value):
         fieldLengths = self.getFieldLengths()
         return int((len(fieldLengths) + 2) * 2 + (sum(fieldLengths) * len(self.entries) + 7) / 8)
     
-    def pack(self, dataOffset=None):
+    def pack(self, data_offset=None):
         fieldLengths = self.getFieldLengths()
         offset = (len(fieldLengths) + 2) * 16
         headerValues = [sum(fieldLengths)] + [offset + sum(fieldLengths[:i]) for i in range(len(fieldLengths) + 1)]

@@ -128,7 +128,9 @@ class PrimitiveType(Type):
     def getFormatChar(self):
         return ""  # overwritten by subclass
     
-    def pack(self, aPythonValue):
+    def pack(self, aPythonValue, data_offset="rubber"):
+        if data_offset != "rubber":
+            print('DIE NOW!')
         # returns a string representing the primitive
         f = "<"  # format prefix defining little endian, standard encoding
         formatChar = self.getFormatChar()
