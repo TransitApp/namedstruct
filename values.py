@@ -15,14 +15,15 @@ import namedstruct.namedstruct
 import namedstruct.stringhelper
 import namedstruct.n_types
 
-
 # TODO: Remove once Python 3 migration is completed
 import sys
 import namedstruct.compat
+
 if sys.version_info.major >= 3:
     unicode = str
 
 PACK_IN_DECLARED_ORDER = 0
+
 
 # given a python object, will return a reasonable Value for it
 # Value   -> returns the argument
@@ -63,25 +64,25 @@ def getArrayValue(arrayValues, fixedSize=None):
 class Value(object):
     def __init__(self, valueType):
         self.type = valueType
-    
+
     def getType(self):
         return self.type
-    
+
     # returns a tuple of strings, the immediate data, and the offseted data, which is assumed to start at data_offset
     # the caller has to ensure proper alignment of the immediate data 
     # but the function will ensure alignment of the offseted data
     def pack(self, data_offset=None):
         raise Exception()
-    
+
     def getPythonValue(self):  # will return a python value, basically what was used to create this
         raise Exception()
-    
+
     def pretty(self):
         raise Exception("unimplemented for " + repr(self))
-    
+
     def getLiteral(self):
         raise Exception("cannot get literal for " + repr(self))
-    
+
     def getImmediateDataSize(self):
         return int(self.type.getWidth())
 
@@ -92,17 +93,17 @@ class PrimitiveValue(Value):
         Value.__init__(self, valueType)
         self.pythonValue = pythonValue
         valueType.assertValueHasType(pythonValue)
-    
+
     @staticmethod
     def hasFixedWidth():
         return True
-    
+
     def getPythonValue(self):
         return self.pythonValue
-    
+
     def pretty(self):
         return repr(self.pythonValue)
-    
+
     def pack(self, data_offset=None):
         return self.type.pack(self.pythonValue), b""
 
@@ -113,7 +114,7 @@ class Int(PrimitiveValue):
         valueType = namedstruct.n_types.IntType(unsigned, bitWidth)
         valueType.assertValueHasType(intValue)
         PrimitiveValue.__init__(self, valueType, intValue)
-    
+
     def getLiteral(self):
         return str(self.getPythonValue())
 
@@ -130,7 +131,7 @@ class Char(PrimitiveValue):
         charType = namedstruct.n_types.CharType()
         char = bytes(char, 'utf-8')
         PrimitiveValue.__init__(self, charType, char)
-    
+
     def getLiteral(self):
         return namedstruct.stringhelper.literalFromString(self.getPythonValue().decode('utf-8'), quote="'")
 
@@ -140,7 +141,7 @@ class BitField(Value):
     def __init__(self, name, bitWidth=32):
         super(BitField, self).__init__(namedstruct.n_types.BitFieldType(name, bitWidth))
         self.values = []
-    
+
     def add(self, name, value, bitWidth=1):
         if not (0 <= value < 2 ** bitWidth):
             raise Exception("bitfield %s cannot store unsigned (%s, %d, bitWidth=%d)"
@@ -148,7 +149,7 @@ class BitField(Value):
         self.type.add(name, bitWidth)
         self.values.append(value)
         return self
-    
+
     def addSigned(self, name, value, bitWidth):
         if not (namedstruct.bithelper.zigZagEncode(value) < 2 ** bitWidth):
             raise Exception("bitfield %s cannot store signed (%s, %d, bitWidth=%d)"
@@ -156,22 +157,22 @@ class BitField(Value):
         self.type.addSigned(name, bitWidth)
         self.values.append(value)
         return self
-    
+
     def addEnum(self, name, enumValue):  # TODO: ,numBits=None,signed=None):
         self.type.addEnum(name, enumValue.getType())
         self.values.append(enumValue)
         return self
-    
+
     @staticmethod
     def hasFixedWidth():
         return True
-    
+
     def getPythonValue(self):
         return self
-    
+
     def get(self, fieldName):  # returns the value of the field name
         return self.values[self.getType().fields[fieldName]]
-    
+
     def pretty(self):
         result = "bitField{bitWidth}({name}){{".format(bitWidth=self.type.bitWidth, name=self.type.name)
         nameLen = max(len(field.name) for field in self.type.fieldArray) if len(self.values) > 0 else 0
@@ -180,7 +181,7 @@ class BitField(Value):
         result = result.replace("\n", "\n" + namedstruct.stringhelper.indent)
         result += "\n}"
         return result
-    
+
     # packs this bitfield into an integer
     def packToInt(self):
         value = 0
@@ -198,11 +199,11 @@ class BitField(Value):
             value |= storeValue << shift
             shift = shift + field.bitWidth
         return value
-    
+
     def pack(self, data_offset=None):
         intPacked = self.packToInt()
         return Int(intPacked, True, self.type.bitWidth).pack(data_offset)
-    
+
     def __repr__(self):
         return (
             self.pretty()
@@ -212,17 +213,17 @@ class BitField(Value):
                 .replace("{,", "{")
                 .replace(",", ", ")
         )
-        
+
         # null value
 
 
 class Null(Value):
     def __init__(self):
         Value.__init__(self, namedstruct.n_types.NullType())
-    
+
     def pretty(self):
         return "<NULL>"
-    
+
     def getPythonValue(self):
         return None
 
@@ -231,6 +232,7 @@ class Reference(Value):
     """
     Reference to another Value
     """
+
     def __init__(self, targetValue, referenceBitWidth=32, targetType=None, pack_order=PACK_IN_DECLARED_ORDER):
         """
         :param targetValue: The value to reference. May be None.
@@ -245,19 +247,21 @@ class Reference(Value):
         if targetValue is None:
             targetValue = Null()
         targetValue = getValue(targetValue)
-        Value.__init__(self, namedstruct.n_types.ReferenceType(targetValue.type, referenceBitWidth=referenceBitWidth))
+        Value.__init__(self,
+                       namedstruct.n_types.ReferenceType(targetType if targetType is not None else targetValue.type,
+                                                         referenceBitWidth=referenceBitWidth))
         self.targetValue = targetValue
         self.pack_order = pack_order
-    
+
     def pretty(self):
         return ("->" +
                 (self.targetValue.pretty().replace("\n", namedstruct.stringhelper.indent + "\n")
                  if self.targetValue is not None else
                  "None"))
-    
+
     def getPythonValue(self):
         return self.targetValue.getPythonValue()
-    
+
     def pack(self, data_offset=None):
         if data_offset is None:
             raise Exception("cannot pack reference without a data offset (is the reference not contained in a struct?)")
@@ -285,10 +289,10 @@ class Array(Value):
                 arrayType.getElementType().assertValueHasType(v)
 
         self.values = values
-    
+
     def getPythonValue(self):
         return self.values
-    
+
     # will pack the elements
     def pack(self, data_offset=None, elementOffsetsRelativeToElement=True):
         if data_offset is None:
@@ -312,7 +316,7 @@ class Array(Value):
         immediateString = b"".join(immediateData)
         offsetedString = b"".join(offsetedData)
         return immediateString, offsetedString
-    
+
     def pretty(self):
         maxChars = 500
         minResults = 2
@@ -335,11 +339,11 @@ class SimpleArray(Array):
         self.fixedSize = fixedSize
 
         Array.__init__(self, namedstruct.n_types.SimpleArrayType(elementType, fixedSize, byteAlignment), values)
-    
+
     def getImmediateDataSize(self):
         return int((self.type.getElementType().getWidth()
-                * (len(self.values) if self.fixedSize is None else self.fixedSize)))
-    
+                    * (len(self.values) if self.fixedSize is None else self.fixedSize)))
+
     def pack(self, data_offset=None, elementOffsetsRelativeToElement=True):
         immediateData, offsetData = Array.pack(self, data_offset)  # call super pack
         if self.fixedSize is not None:
@@ -360,13 +364,13 @@ class String(SimpleArray):
             chars = chars[:-1]
         SimpleArray.__init__(self, namedstruct.n_types.CharType(), chars, fixedSize)
         self.string = string
-    
+
     def pretty(self):
         return namedstruct.stringhelper.cutStringIfTooLong(repr(self.string))
-    
+
     def getPythonValue(self):
         return self.string
-    
+
     def getLiteral(self):
         return namedstruct.stringhelper.literalFromString(self.string)
 
@@ -386,13 +390,14 @@ class Blob(SimpleArray):
             for bitArray in bitArrays:
                 blob.extend(bitArray)
         blob = array.array('B', blob)  # turn blob into an actual binary array - if it's not a string
-        SimpleArray.__init__(self, namedstruct.n_types.CharType(), namedstruct.bithelper.packBitsToChars(blob), fixedSize, byteAlignment)
+        SimpleArray.__init__(self, namedstruct.n_types.CharType(), namedstruct.bithelper.packBitsToChars(blob),
+                             fixedSize, byteAlignment)
         self.blob = blob
-    
+
     def pretty(self):
         return namedstruct.stringhelper.cutStringIfTooLong("[" + ''.join(str(b) for b in self.blob[0:200]) + "]",
-                                               length=len(self.blob))
-    
+                                                           length=len(self.blob))
+
     def getPythonValue(self):
         return self.blob
 
@@ -418,12 +423,13 @@ class ReferenceArray(Array):
             elementType = namedstruct.n_types.mergeTypes(v.getType(), elementType)
             targetValues.append(v)
         referenceValues = [Reference(v, referenceBitWidth) for v in targetValues]
-        Array.__init__(self, namedstruct.n_types.ReferenceArrayType(elementType, fixedSize, referenceBitWidth), referenceValues)
-    
+        Array.__init__(self, namedstruct.n_types.ReferenceArrayType(elementType, fixedSize, referenceBitWidth),
+                       referenceValues)
+
     def getImmediateDataSize(self):
         return int((self.type.getElementType().getWidth()
-                * (len(self.values) if self.fixedSize is None else self.fixedSize)))
-    
+                    * (len(self.values) if self.fixedSize is None else self.fixedSize)))
+
     def pack(self, data_offset=None, elementOffsetsRelativeToElement=True):
         if data_offset is None:
             data_offset = self.getImmediateDataSize()
@@ -452,26 +458,26 @@ class EnumValue(Value):
         assert name in enumType.mapping
         super(EnumValue, self).__init__(enumType)
         self.name = name
-    
+
     @staticmethod
     def hasFixedWidth():
         return True
-    
+
     def getPythonValue(self):  # will return a python value, basically what was used to create this
         return self.type.mapping[self.name].getPythonValue()
-    
+
     def pretty(self):
         return self.type.getName() + "." + self.name
-    
+
     def getLiteral(self):
         raise self.type.values[self.name].getLiteral()
-    
+
     def getImmediateDataSize(self):
         return int(self.type.getEnumType().getWidth())
-    
+
     def pack(self, data_offset=None):
         return self.type.mapping[self.name].pack()
-    
+
     def __repr__(self):
         return "%s.%s" % (self.type, self.name)
 
@@ -483,17 +489,17 @@ class Struct(Value, namedstruct.constants.AddConstantFunctions):
         structType = namedstruct.n_types.StructType(name)
         Value.__init__(self, structType)
         self.values = []  # list of member values
-    
+
     def __repr__(self):
         structType = self.type
         numMembers = len(structType.members)
         return ("<Struct:" + str(structType.name)
                 + " with " + str(numMembers)
                 + " member%s>" % ("" if numMembers == 1 else "s"))
-    
+
     def getName(self):
         return self.type.name
-    
+
     def addConstant(self, name, value):
         self.getType().addConstant(name, value)
         return self
@@ -530,17 +536,17 @@ class Struct(Value, namedstruct.constants.AddConstantFunctions):
 
     def getPythonValue(self):
         return self  # struct is a container, so it's not a python value
-    
+
     def get(self, key):  # returns the python value associated with the given key
         if key in self.type.members:
             index = self.type.members[key]
             return self.values[index].getPythonValue()
         constantPool = self.getType().getConstantPool()
         return constantPool.get(key).getPythonValue()
-    
+
     def getImmediateDataSize(self):
         return int(sum(v.getImmediateDataSize() for v in self.values))
-    
+
     # will add a new value to the struct.
     # if value is a dictionary, will add value[name]
     # if the value is a Value, will add the value with the type
@@ -568,7 +574,7 @@ class Struct(Value, namedstruct.constants.AddConstantFunctions):
         else:
             self.addReference(name, value, pack_order=pack_order)
         return self
-    
+
     # will add a reference to the given value to this struct
     # if the type is defined, and value=None allows adding a typed reference even if the value is Null
     def addReference(self, name, value, referenceBitWidth=32, targetType=None, pack_order=PACK_IN_DECLARED_ORDER):
@@ -577,7 +583,7 @@ class Struct(Value, namedstruct.constants.AddConstantFunctions):
                 raise Exception("can only override reference type for Null Value")
             return self.addImmediate(name, Reference(None, referenceBitWidth, targetType=targetType))
         return self.addImmediate(name, Reference(value, referenceBitWidth, pack_order=pack_order))
-    
+
     # short hand for addReference(name,None,referenceBitWidth,targetType)
     def addNullReference(self, name, targetType, referenceBitWidth=32):
         return self.addImmediate(name, Reference(None, referenceBitWidth, targetType=targetType))
@@ -585,18 +591,21 @@ class Struct(Value, namedstruct.constants.AddConstantFunctions):
     # shorthand for addReference(name,value,referenceBitWidth=8,targetType=targetType)
     def addRef8(self, name, value, targetType=None, pack_order=PACK_IN_DECLARED_ORDER):
         referenceBitWidth = 8
-        return self.addReference(name, value, referenceBitWidth=referenceBitWidth, targetType=targetType, pack_order=pack_order)
-    
+        return self.addReference(name, value, referenceBitWidth=referenceBitWidth, targetType=targetType,
+                                 pack_order=pack_order)
+
     # shorthand for addReference(name,value,referenceBitWidth=16,targetType=targetType)
     def addRef16(self, name, value, targetType=None, pack_order=PACK_IN_DECLARED_ORDER):
         referenceBitWidth = 16
-        return self.addReference(name, value, referenceBitWidth=referenceBitWidth, targetType=targetType, pack_order=pack_order)
-    
+        return self.addReference(name, value, referenceBitWidth=referenceBitWidth, targetType=targetType,
+                                 pack_order=pack_order)
+
     # shorthand for addReference(name,value,referenceBitWidth=32,targetType=targetType)
     def addRef32(self, name, value, targetType=None, pack_order=PACK_IN_DECLARED_ORDER):
         referenceBitWidth = 32
-        return self.addReference(name, value, referenceBitWidth=referenceBitWidth, targetType=targetType, pack_order=pack_order)
-    
+        return self.addReference(name, value, referenceBitWidth=referenceBitWidth, targetType=targetType,
+                                 pack_order=pack_order)
+
     # will add the value
     def addImmediate(self, name, value):
         value = getValue(dictGet(value, name))
@@ -604,37 +613,37 @@ class Struct(Value, namedstruct.constants.AddConstantFunctions):
         self.values.extend([Padding()] * padBytes)
         self.values.append(value)
         return self
-    
+
     # add an int32 to the struct. if 'anInt' is a dictionary d, will add d[name]
     # if the name exists, will throw an error
     # returns self
     def addInt8(self, name, anInt):
         return self.add(name, Int(dictGet(anInt, name), False, 8))
-    
+
     def addInt16(self, name, anInt):
         return self.add(name, Int(dictGet(anInt, name), False, 16))
-    
+
     def addInt32(self, name, anInt):
         return self.add(name, Int(dictGet(anInt, name), False, 32))
-    
+
     def addInt64(self, name, anInt):
         return self.add(name, Int(dictGet(anInt, name), False, 64))
-    
+
     def addUInt8(self, name, anInt):
         return self.add(name, Int(dictGet(anInt, name), True, 8))
-    
+
     def addUInt16(self, name, anInt):
         return self.add(name, Int(dictGet(anInt, name), True, 16))
-    
+
     def addUInt32(self, name, anInt):
         return self.add(name, Int(dictGet(anInt, name), True, 32))
-    
+
     def addUInt64(self, name, anInt):
         return self.add(name, Int(dictGet(anInt, name), True, 64))
-    
+
     def addChar(self, name, aChar):
         return self.add(name, Char(dictGet(aChar, name)))
-    
+
     # will reference add a binary blob, either an array of 0/1 values, or a string, to the struct.
     # if 'aBlob' is a dictionary d, will add d[name] will store the the byte offset in the C struct,
     # using the name <name>+ByteOffset. If the name exists, will throw an error.
@@ -644,7 +653,7 @@ class Struct(Value, namedstruct.constants.AddConstantFunctions):
     def addBlob(self, name, blob, referenceBitWidth=32, pack_order=PACK_IN_DECLARED_ORDER):
         self.addReference(name, Blob(dictGet(blob, name)), referenceBitWidth=referenceBitWidth, pack_order=pack_order)
         return self
-    
+
     # will add a string to the struct. if 'aString' is a dictionary d, will add d[name]
     # will store the byte offset in the C struct, using the name <name>+ByteOffset
     # if the name exists, will throw an error
@@ -655,16 +664,18 @@ class Struct(Value, namedstruct.constants.AddConstantFunctions):
     # reference bit width allows overriding the bit width of the reference (byte offset) used,
     # if the string is not stored as an immediate value.
     # returns self
-    def addString(self, name, string, fixedWidth=None, omitTerminal=False, referenceBitWidth=32, pack_order=PACK_IN_DECLARED_ORDER):
+    def addString(self, name, string, fixedWidth=None, omitTerminal=False, referenceBitWidth=32,
+                  pack_order=PACK_IN_DECLARED_ORDER):
         string = dictGet(string, name)
         if string is None:
             if fixedWidth is not None:
                 raise Exception("cannot add fixed with string as a null-reference")
-            self.addImmediate(name, Reference(None, targetType=namedstruct.n_types.SimpleArrayType(namedstruct.n_types.CharType())))
+            self.addImmediate(name, Reference(None, targetType=namedstruct.n_types.SimpleArrayType(
+                namedstruct.n_types.CharType())))
         else:
             self.addReference(name, String(string, fixedWidth, omitTerminal), referenceBitWidth, pack_order=pack_order)
         return self
-    
+
     # will add an array of values to the struct.
     # if value is a dictionary, will add value[name]
     # if the value is an array of Value objects, will add an array with the val
@@ -679,12 +690,13 @@ class Struct(Value, namedstruct.constants.AddConstantFunctions):
         else:
             self.addReference(name, value, pack_order=pack_order)
         return self
-    
+
     # will add a reference array to the struct.
     # if value is a dictionary, will add value[name]
     # if the value is an array of Value objects, will add an array with the val
     # otherwise it will attempt to turn the value into a value using "getValue"
-    def addReferenceArray(self, name, arrayValues, fixedSize=None, referenceBitWidth=32, pack_order=PACK_IN_DECLARED_ORDER):
+    def addReferenceArray(self, name, arrayValues, fixedSize=None, referenceBitWidth=32,
+                          pack_order=PACK_IN_DECLARED_ORDER):
         arrayValues = dictGet(arrayValues, name)
         arrayValues = [getValue(v) for v in arrayValues]
         array = ReferenceArray(arrayValues, fixedSize, referenceBitWidth)
@@ -695,14 +707,14 @@ class Struct(Value, namedstruct.constants.AddConstantFunctions):
         else:
             self.addReference(name, array, pack_order=pack_order)
         return self
-    
+
     # this will finalize type of this struct. The Struct may never grow in size from this point on.
     # returns self.
     def finalize(self, byteAlignment=4):
         padBytes = self.getType().finalize(byteAlignment)
         self.values.extend([Padding()] * padBytes)
         return self
-    
+
     def pretty(self):
         result = "struct " + self.type.getName() + " {"
         length = max([0] + [len(repr(self.type.getMember(i)[1])) for i in range(len(self.values))])
@@ -718,6 +730,7 @@ class Struct(Value, namedstruct.constants.AddConstantFunctions):
         """
         :return: List[Tuple[order of immediate value, value]] sorted in order of referred value
         """
+
         def key(item):
             i, value = item
             pack_order = value.pack_order if isinstance(value, Reference) else 0
@@ -767,7 +780,6 @@ class Struct(Value, namedstruct.constants.AddConstantFunctions):
         else:
             return immediate_blob, referred_blob
 
-    
     # prints the sizes of every member
     # indent allows indenting the printing result by 'indent' spaces
     def printSizes(self, indent=0):
@@ -798,13 +810,13 @@ class BitFieldArray(Value):
     def __init__(self, name, *fields):
         super(BitFieldArray, self).__init__(namedstruct.n_types.BitFieldArrayType(name, fields))
         self.entries = []  # each entry is an array of (isBlob,value)
-    
+
     def __repr__(self):
         return "<BitFieldArray:%s with %d fields>" % (self.type.getName(), len(self.type.getFields()))
-    
+
     def __len__(self):
         return len(self.entries)
-    
+
     # adds a new entry to the bit field array
     # the fieldValues may be a dictionary of field-value, or a sequence of values in the same order as the fields
     # the values themselves may be (positive) integers, or Blob objects
@@ -823,30 +835,30 @@ class BitFieldArray(Value):
             else:
                 if not isinstance(value, numbers.Integral):
                     raise Exception(
-                            "attempting to add " + repr(value) + ", but bitFieldArray only supports int or blobValue.")
+                        "attempting to add " + repr(value) + ", but bitFieldArray only supports int or blobValue.")
                 if not (0 <= value < 2 ** 31):
                     raise Exception(
-                            "bitFieldArray only supports values between 0 (incl) and 2^31 (excl), received " + repr(value))
+                        "bitFieldArray only supports values between 0 (incl) and 2^31 (excl), received " + repr(value))
                 entry.append((False, value))
         self.entries.append(entry)
         return self
-    
+
     # calls add on all elements of a sequence, returns self
     def addAll(self, entries):
         for entry in entries:
             self.add(entry)
         return self
-    
+
     @staticmethod
     def hasFixedWidth():
         return False
-    
+
     def getPythonValue(self):
         return self
-    
+
     def get(self, fieldName, index):  # returns the value of the field name at the given index
         return self.entries[index][self.type.getFields().index(fieldName)][1]
-    
+
     # for every field, returns the bit length of it
     def getFieldLengths(self):
         fields = self.type.getFields()
@@ -858,7 +870,7 @@ class BitFieldArray(Value):
                 namedstruct.bithelper.requiredBits(entry[fieldIndex][1])
                 for entry in self.entries)
             for fieldIndex in range(len(fields))]
-    
+
     def pretty(self):
         fields = self.type.getFields()
         fieldLengths = self.getFieldLengths()
@@ -892,11 +904,11 @@ class BitFieldArray(Value):
         result += "\n" + "\n".join(rows)
         result += "\n}"
         return result
-    
+
     def getImmediateDataSize(self):
         fieldLengths = self.getFieldLengths()
         return int((len(fieldLengths) + 2) * 2 + (sum(fieldLengths) * len(self.entries) + 7) / 8)
-    
+
     def pack(self, data_offset=None):
         fieldLengths = self.getFieldLengths()
         offset = (len(fieldLengths) + 2) * 16
