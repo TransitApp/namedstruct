@@ -520,6 +520,14 @@ class Struct(Value, namedstruct.constants.AddConstantFunctions):
         self.getType().types.append(namedstruct.n_types.EnumType(enum_type.__name__, value_type, members))
         return self
 
+    def addIncompleteType(self, underlying_type):
+        """
+        Add a forward declaration for a namedstruct type
+        :param underlying_type: The type to use as the basis for the incomplete type
+        """
+        self.getType().types.append(namedstruct.n_types.IncompleteType(underlying_type))
+        return self
+
     def getPythonValue(self):
         return self  # struct is a container, so it's not a python value
     
