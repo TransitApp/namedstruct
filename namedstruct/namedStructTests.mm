@@ -743,6 +743,23 @@ for (int elementIndex = 0; elementIndex < 3; elementIndex++) { \
 }
 
 
+- (void) testPackOrder {
+    auto aStruct = (testPackOrder*)memblockFromPath(genDir+"/testPackOrder.bin");
+    
+    // Check data not corrupted
+    XCTAssertEqual(aStruct->getAardvark()->weight, 5);
+    XCTAssertFalse(aStruct->getWombat()->isABat);
+    XCTAssertEqual(aStruct->getZebra()->stripes, 96);
+    XCTAssertEqual(aStruct->getWalrus()->getSubWalrus()->hugeNumber, 1111'1111);
+    XCTAssertEqual(aStruct->getBaboon()->something, 22);
+    
+    // Check referred data layout
+    XCTAssertLessThan((uintptr_t) aStruct->getAardvark(), (uintptr_t) aStruct->getBaboon());
+    XCTAssertLessThan((uintptr_t) aStruct->getBaboon(), (uintptr_t) aStruct->getWombat());
+    XCTAssertLessThan((uintptr_t) aStruct->getWombat(), (uintptr_t) aStruct->getWalrus());
+    XCTAssertLessThan((uintptr_t) aStruct->getWalrus(), (uintptr_t) aStruct->getZebra());
+}
+    
 @end
 
 
