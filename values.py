@@ -715,6 +715,17 @@ class Struct(Value, namedstruct.constants.AddConstantFunctions):
         self.values.extend([Padding()] * padBytes)
         return self
 
+    def overwrite(self, key, value):
+        index = self.type.members[key]
+        old_type = self.type.types[index]
+        new_value = getValue(dictGet(value, key))
+        # FIXME: This part might not be right, didn't think about it hard enough
+        assert old_type.getAlignment() == new_value.getType().getAlignment()
+        self.type.types[index] = new_value.getType()
+        self.values[index] = new_value
+        return self
+
+
     def pretty(self):
         result = "struct " + self.type.getName() + " {"
         length = max([0] + [len(repr(self.type.getMember(i)[1])) for i in range(len(self.values))])
