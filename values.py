@@ -113,7 +113,7 @@ class Int(PrimitiveValue):
     def __init__(self, intValue, unsigned=False, bitWidth=32):
         valueType = namedstruct.n_types.IntType(unsigned, bitWidth)
         valueType.assertValueHasType(intValue)
-        PrimitiveValue.__init__(self, valueType, intValue)
+        PrimitiveValue.__init__(self, valueType, int(intValue))
 
     def getLiteral(self):
         return str(self.getPythonValue())
@@ -851,7 +851,7 @@ class BitFieldArray(Value):
                 if not (0 <= value < 2 ** 31):
                     raise Exception(
                         "bitFieldArray only supports values between 0 (incl) and 2^31 (excl), received " + repr(value))
-                entry.append((False, value))
+                entry.append((False, int(value)))
         self.entries.append(entry)
         return self
 
