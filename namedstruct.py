@@ -205,7 +205,7 @@ def generateHeader(valuesOrEnumTypes, constantPools=None, namespace=None, define
     for s in valuesOrEnumTypes:
         if isinstance(s, namedstruct.n_types.EnumType):
             allTypes.append(s)
-        elif isinstance(s, (namedstruct.values.Struct, namedstruct.values.BitField, namedstruct.values.EnumValue)):
+        elif isinstance(s, (namedstruct.values.Struct, namedstruct.values.BitField, namedstruct.values.EnumValue,)):
             allTypes.append(s.type)
         else:
             raise Exception("cannot generated header for value: %s" % s)
