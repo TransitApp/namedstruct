@@ -734,7 +734,6 @@ class Struct(Value, namedstruct.constants.AddConstantFunctions):
         def key(item):
             i, value = item
             name = self.type.getMember(i)[2]
-            print(name, i, value.__dict__)
             pack_order = value.pack_order if isinstance(value, Reference) else 0
             return pack_order, i
 
