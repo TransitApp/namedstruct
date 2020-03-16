@@ -721,6 +721,7 @@ class Struct(Value, namedstruct.constants.AddConstantFunctions):
         new_value = getValue(dictGet(value, key))
         # FIXME: This part might not be right, didn't think about it hard enough
         assert old_type.getAlignment() == new_value.getType().getAlignment()
+        assert old_type.getWidth() == new_value.getType().getWidth()
         self.type.types[index] = new_value.getType()
         self.values[index] = new_value
         return self
