@@ -276,7 +276,7 @@ def generateTests():
 
     add(Struct("testStruct37")
         .addReference("stringRef", None, targetType=String().getType())
-        .addNullReference("bitFieldReference", BitField("bitField2").add("aField", 0, 13).getType())
+        .addNullReference("bitFieldReference", BitField("bitField2000").add("aField", 0, 13).getType())
         .addNullReference("int8ArrayRef", SimpleArray(n_types.INT8, [], 16).getType(), referenceBitWidth=16)
         .addReference("uint8Ref", None, referenceBitWidth=8, targetType=n_types.INT8))
 
