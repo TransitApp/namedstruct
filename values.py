@@ -719,7 +719,7 @@ class Struct(Value, namedstruct.constants.AddConstantFunctions):
         index = self.type.members[key]
         old_type = self.type.types[index]
         new_value = getValue(dictGet(value, key))
-        # FIXME: This part might not be right, didn't think about it hard enough
+        # This check is intended to ensure the new value will not cause any pointers to shift
         assert old_type.getAlignment() == new_value.getType().getAlignment()
         assert old_type.getWidth() == new_value.getType().getWidth()
         self.type.types[index] = new_value.getType()
