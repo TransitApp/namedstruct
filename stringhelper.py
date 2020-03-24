@@ -8,7 +8,8 @@ indent = " " * 4
 # ********** packing *********************************************************
 # takes a string and returns it as a null terminated string of bytes char
 def stringToChars(string):
-    bytesString = bytes(string, 'utf-8') + b"\0"
+    bytesString = string if isinstance(string, bytes) else bytes(string, 'utf-8')
+    bytesString += b"\0"
     arrayOfIndividualBytes = []
     for charValue in bytesString:
         arrayOfIndividualBytes.append(bytes([charValue]))

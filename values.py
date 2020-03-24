@@ -113,7 +113,7 @@ class Int(PrimitiveValue):
     def __init__(self, intValue, unsigned=False, bitWidth=32):
         valueType = namedstruct.n_types.IntType(unsigned, bitWidth)
         valueType.assertValueHasType(intValue)
-        PrimitiveValue.__init__(self, valueType, intValue)
+        PrimitiveValue.__init__(self, valueType, int(intValue))
 
     def getLiteral(self):
         return str(self.getPythonValue())
@@ -715,6 +715,18 @@ class Struct(Value, namedstruct.constants.AddConstantFunctions):
         self.values.extend([Padding()] * padBytes)
         return self
 
+    def overwrite(self, key, value):
+        index = self.type.members[key]
+        old_type = self.type.types[index]
+        new_value = getValue(dictGet(value, key))
+        # This check is intended to ensure the new value will not cause any pointers to shift
+        assert old_type.getAlignment() == new_value.getType().getAlignment()
+        assert old_type.getWidth() == new_value.getType().getWidth()
+        self.type.types[index] = new_value.getType()
+        self.values[index] = new_value
+        return self
+
+
     def pretty(self):
         result = "struct " + self.type.getName() + " {"
         length = max([0] + [len(repr(self.type.getMember(i)[1])) for i in range(len(self.values))])
@@ -840,7 +852,7 @@ class BitFieldArray(Value):
                 if not (0 <= value < 2 ** 31):
                     raise Exception(
                         "bitFieldArray only supports values between 0 (incl) and 2^31 (excl), received " + repr(value))
-                entry.append((False, value))
+                entry.append((False, int(value)))
         self.entries.append(entry)
         return self
 
