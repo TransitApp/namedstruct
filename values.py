@@ -872,6 +872,11 @@ class BitFieldArray(Value):
     def get(self, fieldName, index):  # returns the value of the field name at the given index
         return self.entries[index][self.type.getFields().index(fieldName)][1]
 
+    def set(self, fieldName, index, value):  # sets the value of the field name at the given index
+        tupleIndex = self.type.getFields().index(fieldName)
+        oldTuple = self.entries[index][tupleIndex]
+        self.entries[index][tupleIndex] = oldTuple[0:1] + (value,) + oldTuple[2:]
+
     # for every field, returns the bit length of it
     def getFieldLengths(self):
         fields = self.type.getFields()
