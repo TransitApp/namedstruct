@@ -432,6 +432,31 @@ class ReferenceType(Type):
         return functionCode
 
 
+class ConstCharPointerType(Type):
+    """
+    This type should only be used to refer to static constants.
+    """
+    def __init__(self):
+        super().__init__()
+
+    def getName(self):
+        return "const char*"
+
+    def getWidth(self):
+        # Deter use in values
+        return -100000
+
+    def getAlignment(self):
+        return self.getWidth()
+
+    def merge(self, other):
+        if isinstance(other, SimpleArrayType) and isinstance(other.elementType, CharType):
+            return self
+
+        _typeEqualAssert(self, other, "name")
+        return self
+
+
 class ArrayType(Type):
     def __init__(self, elementType):
         super(ArrayType, self).__init__()
@@ -463,6 +488,10 @@ class SimpleArrayType(ArrayType):
             self.suffix = "[" + str(fixedSize) + "]"
         else:
             self.suffix = "[]"
+
+        # Inner types may also have suffix
+        self.suffix += getattr(elementType, 'suffix', '')
+
         self.alignment = byteAlignment if byteAlignment is not None else elementType.getAlignment()
         if byteAlignment is not None:
             if byteAlignment < elementType.getAlignment():
@@ -714,7 +743,7 @@ class StructType(Type, namedstruct.constants.AddConstantFunctions):
         self.types = []  # list of member types
         self.numPadBytes = 0  # the total number of padding bytes in struct
 
-    def addConstant(self, name, value):  # should return self
+    def addConstant(self, name, value):
         self.constantPool.addConstant(name, value)
         return self
 

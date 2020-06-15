@@ -7,7 +7,7 @@ project(namedstruct LANGUAGES CXX C)
 
 add_library(namedstruct namedstruct/bits.h namedstruct/bits.cpp)
 
-set_property(TARGET namedstruct PROPERTY CXX_STANDARD 14)
+set_property(TARGET namedstruct PROPERTY CXX_STANDARD 17)
 set_property(TARGET namedstruct PROPERTY CXX_STANDARD_REQUIRED ON)
 
 target_include_directories(namedstruct PUBLIC ${PROJECT_SOURCE_DIR})
@@ -24,7 +24,7 @@ if(APPLE AND ${CMAKE_VERSION} VERSION_GREATER 3.8.2016 AND XCTest_FOUND)
         namedstruct/testBits.mm
     )
 
-    set_property(TARGET namedstructTests PROPERTY CXX_STANDARD 14)
+    set_property(TARGET namedstructTests PROPERTY CXX_STANDARD 17)
     set_property(TARGET namedstructTests PROPERTY CXX_STANDARD_REQUIRED ON)
 
     set_source_files_properties(${PROJECT_SOURCE_DIR}/namedstruct/localTestFiles PROPERTIES MACOSX_PACKAGE_LOCATION Resources)

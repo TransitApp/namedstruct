@@ -160,6 +160,10 @@ unsigned char* memblockFromPath(const string &path, ifstream::pos_type *sizeRetu
     auto aStruct = (testStruct10*)memblockFromPath(genDir+"/testStruct10.bin");
     XCTAssertFalse(aStruct==nullptr);
     XCTAssertEqual(testStruct10::EVERYTHING, 43);
+    XCTAssertEqual(testStruct10::LUCKY_NUMBERS[2], 5);
+    XCTAssertTrue(testStruct10::LABEL == std::string("this is a label"));
+    XCTAssertTrue(testStruct10::IDENTITY[1][1] == 1);
+    XCTAssertTrue(testStruct10::GREAT_LAKES[3] == "Erie");
 }
 
 - (void)testStruct11 {
@@ -758,6 +762,19 @@ for (int elementIndex = 0; elementIndex < 3; elementIndex++) { \
     XCTAssertLessThan((uintptr_t) aStruct->getBaboon(), (uintptr_t) aStruct->getWombat());
     XCTAssertLessThan((uintptr_t) aStruct->getWombat(), (uintptr_t) aStruct->getWalrus());
     XCTAssertLessThan((uintptr_t) aStruct->getWalrus(), (uintptr_t) aStruct->getZebra());
+}
+
+- (void) testMatrix {
+    auto aStruct = (testMatrix*)memblockFromPath(genDir+"/testMatrix.bin");
+    auto M = aStruct->fixedMatrix;
+    
+    XCTAssertEqual(M[0][0], 1);
+    XCTAssertEqual(M[0][1], 2);
+    XCTAssertEqual(M[1][0], 3);
+    XCTAssertEqual(M[1][1], 4);
+    XCTAssertEqual(M[2][0], 5);
+    XCTAssertEqual(M[2][1], 6);
+    XCTAssertTrue(aStruct->getExtraValue() == std::string("Lake St. Clair"));
 }
     
 @end

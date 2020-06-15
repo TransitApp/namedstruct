@@ -355,6 +355,9 @@ class SimpleArray(Array):
         else:
             return immediateData, offsetData
 
+    def getLiteral(self):
+        return '{%s}' % ', '.join([value.getLiteral() for value in self.values])
+
 
 # c array of chars - arbitrary strings get converted to utf-8
 class String(SimpleArray):
@@ -400,6 +403,30 @@ class Blob(SimpleArray):
 
     def getPythonValue(self):
         return self.blob
+
+class Matrix(SimpleArray):
+    def __init__(self, elementType, nRows, nCols, values, byteAlignment=None):
+        assert(len(values) == nRows)
+        assert(all(len(row) == nCols for row in values))
+
+        values_wrapped = [SimpleArray(elementType, row, fixedSize=nCols) for row in values]
+        super().__init__(namedstruct.n_types.SimpleArrayType(elementType, nCols), values_wrapped, nRows, byteAlignment)
+
+class ConstantStringArray(Array):
+    """Special case: An array of const char * pointers, to statically allocated C strings"""
+    def __init__(self, values, fixedSize=None, byteAlignment=None):
+        values_as_strings = [namedstruct.String(value) for value in values]
+        elementType = namedstruct.n_types.ConstCharPointerType()
+        super().__init__(namedstruct.n_types.SimpleArrayType(elementType, fixedSize, byteAlignment), values_as_strings)
+
+    def getImmediateDataSize(self):
+        raise NotImplementedError('This type is available for constant arrays only')
+
+    def pack(self, data_offset=None, elementOffsetsRelativeToElement=True):
+        raise NotImplementedError('This type is available for constant arrays only')
+
+    def getLiteral(self):
+        return '{%s}' % ', '.join([value.getLiteral() for value in self.values])
 
 
 # reference array

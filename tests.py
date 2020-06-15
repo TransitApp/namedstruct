@@ -113,7 +113,13 @@ def generateTests():
         .addConstant("FOO", 0)
         .addConstant("LABEL", "this is a label")
         .addConstant("QUOTE", '"')
-        .addConstants(TEST_CONSTANTS))
+        .addConstants(TEST_CONSTANTS)
+        .addConstant("LUCKY_NUMBERS", [2,3,5,7])
+        .addConstant("IDENTITY",  Matrix(n_types.INT32, 2, 2, [
+            [Int(1), Int(0)],
+            [Int(0), Int(1)]
+    ]))
+        .addConstant("GREAT_LAKES", ConstantStringArray(["Superior","Michigan","Huron","Erie", "Ontario"])))
 
     add(Struct("testStruct11")
         .addInt32("value", 1)
@@ -393,6 +399,13 @@ def generateTests():
              , pack_order=1)
         .add("baboon", Struct("Baboon").addUInt8("something", 22))
         )
+
+    add(Struct("testMatrix")
+        .add("fixedMatrix", Matrix(n_types.INT32, 3, 2,
+                                   [[1,2],
+                                    [3,4],
+                                    [5,6]]))
+        .add('extraValue', "Lake St. Clair"))
 
     raised_exception = False
     try:
