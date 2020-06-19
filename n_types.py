@@ -329,7 +329,7 @@ class BitFieldType(Type):
                             "{indent}{indent}{intType} intValue = static_cast<{intType}>(v);\n"
                             "{indent}{indent}{storageType} bitValue = " +
                             (
-                                "(intValue << 1)^(intValue>>{bitfieldBitsMinus1})" if useZigZag else "intValue") + ";\n"
+                                "namedstruct::zigZagEncode(intValue)" if useZigZag else "intValue") + ";\n"
                                                                                                                    "{indent}{indent}bits = (bits & ~({mask} << {shift:2})) | ((bitValue & {mask}) << {shift:2});\n"
                                                                                                                    "{indent}}}\n").format(
                         intType=intType,
