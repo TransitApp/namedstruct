@@ -262,8 +262,8 @@ namespace namedstruct {
             pData = advance(pData, -1); //step pointer backwards
             uint32_t previousWord = getUInt32(pData);
             numBits = numBits - currentBitsLeftInWord; //number of bits needed from the new word
-            uint32_t result = (((currentWord >> (32 - currentBitsLeftInWord)) << numBits)
-                               | (previousWord >> (32 - numBits)));
+            uint32_t word = currentWord >> ((32 - currentBitsLeftInWord) & 0x1F);
+            uint32_t result = (word << numBits) | (previousWord >> (32 - numBits));
             currentWord = previousWord << numBits;
             currentBitsLeftInWord = 32 - numBits;
             return result;
