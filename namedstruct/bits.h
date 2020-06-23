@@ -16,6 +16,7 @@
 #ifndef bgtfsLib_bits_h
 #define bgtfsLib_bits_h
 
+#include "shifts.h"
 #include <cmath>
 #include <limits>
 #include <stdint.h>
@@ -262,7 +263,7 @@ namespace namedstruct {
             pData = advance(pData, -1); //step pointer backwards
             uint32_t previousWord = getUInt32(pData);
             numBits = numBits - currentBitsLeftInWord; //number of bits needed from the new word
-            uint32_t word = currentWord >> ((32 - currentBitsLeftInWord) & 0x1F);
+            uint32_t word = NonNegative(currentWord) >> NonNegative(32 - currentBitsLeftInWord);
             uint32_t result = (word << numBits) | (previousWord >> (32 - numBits));
             currentWord = previousWord << numBits;
             currentBitsLeftInWord = 32 - numBits;
