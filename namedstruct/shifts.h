@@ -29,31 +29,33 @@ struct ShiftDomain {
 
 template <typename T>
 struct MaybeNegative : public ShiftDomain<T> {
+    using value_type = T;
+
     using ShiftDomain<T>::value;
 
     inline constexpr explicit MaybeNegative(T value) : ShiftDomain<T>(value) {}
 
     template <typename Exp>
-    inline constexpr auto operator<<(NonNegative<Exp> exponent) {
-        return value > 0 ? value << exponent.clamped<T>() : -((-value) << exponent.clamped<T>());
+    inline constexpr auto operator<<(NonNegative<Exp> exponent) const {
+        return value > 0 ? value << exponent.template clamped<T>() : -((-value) << exponent.template clamped<T>());
     }
 
     template <typename Exp>
-    inline constexpr auto operator>>(NonNegative<Exp> exponent) {
-        return value > 0 ? value >> exponent.clamped<T>() : -((-value) >> exponent.clamped<T>());
+    inline constexpr auto operator>>(NonNegative<Exp> exponent) const {
+        return value > 0 ? value >> exponent.template clamped<T>() : ~((~value) >> exponent.template clamped<T>());
     }
 
     template <typename Exp>
-    inline constexpr auto operator<<(MaybeNegative<Exp> exponent) {
+    inline constexpr auto operator<<(MaybeNegative<Exp> exponent) const {
         return exponent.isPositive() ? *this << exponent.toNonNegative() : *this >> exponent.toNonNegativeOpposite();
     }
 
     template <typename Exp>
-    inline constexpr auto operator>>(MaybeNegative<Exp> exponent) {
+    inline constexpr auto operator>>(MaybeNegative<Exp> exponent) const {
         return exponent.isPositive() ? *this >> exponent.toNonNegative() : *this << exponent.toNonNegativeOpposite();
     }
 
-    inline constexpr auto isPositive() const {
+    inline constexpr bool isPositive() const {
         return value > 0;
     }
 
@@ -68,32 +70,34 @@ struct MaybeNegative : public ShiftDomain<T> {
 
 template <typename T>
 struct NonNegative : public ShiftDomain<T> {
+    using value_type = T;
+
     using ShiftDomain<T>::value;
 
     inline constexpr explicit NonNegative(T value) : ShiftDomain<T>(value) {}
 
     template <typename Exp>
-    inline constexpr auto operator<<(NonNegative<Exp> exponent) {
-        return value << exponent.clamped<T>();
+    inline constexpr auto operator<<(NonNegative<Exp> exponent) const {
+        return value << exponent.template clamped<T>();
     }
 
     template <typename Exp>
-    inline constexpr auto operator>>(NonNegative<Exp> exponent) {
-        return value >> exponent.clamped<T>();
+    inline constexpr auto operator>>(NonNegative<Exp> exponent) const {
+        return value >> exponent.template clamped<T>();
     }
 
     template <typename Exp>
-    inline constexpr auto operator<<(MaybeNegative<Exp> exponent) {
+    inline constexpr auto operator<<(MaybeNegative<Exp> exponent) const {
         return exponent.isPositive() ? *this << exponent.toNonNegative() : *this >> exponent.toNonNegativeOpposite();
     }
 
     template <typename Exp>
-    inline constexpr auto operator>>(MaybeNegative<Exp> exponent) {
+    inline constexpr auto operator>>(MaybeNegative<Exp> exponent) const {
         return exponent.isPositive() ? *this >> exponent.toNonNegative() : *this << exponent.toNonNegativeOpposite();
     }
 
     template <typename X>
-    inline constexpr auto clamped() {
+    inline constexpr auto clamped() const {
         constexpr auto ShiftLimit = 8 * sizeof(X) - 1;
         return value & ShiftLimit;
     }
