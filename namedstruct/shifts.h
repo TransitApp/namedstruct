@@ -46,34 +46,90 @@ struct ShiftDomain {
     ShiftDomain() = delete;
 };
 
+template <typename T>
+struct Clamped : public ShiftDomain<T> {
+    using ShiftDomain<T>::value;
+
+    inline constexpr explicit Clamped(T value) : ShiftDomain<T>(value) {}
+    
+    template <typename X>
+    inline constexpr auto operator+(NonNegative<X> other) const {
+        return NonNegative<X>(value + other.value);
+    }
+};
+
+template <typename T>
+struct BitWidth {
+    static constexpr auto value = 8 * sizeof(T);
+
+    inline constexpr explicit BitWidth() = default;
+
+    template <typename X>
+    inline constexpr static auto clamp(NonNegative<X> other) {
+        return Clamped(other.value & (value - 1));
+    }
+    
+    template <typename X>
+    inline constexpr static auto clamp(Clamped<X> other) {
+        return Clamped(other.value);
+    }
+
+    template <typename X>
+    inline constexpr auto operator-(Clamped<X> other) const {
+        return Clamped<X>(value - other.value);
+    }
+
+    template <typename X>
+    inline constexpr auto operator-(NonNegative<X> other) const {
+        return NonNegative<X>(value - other.value);
+    }
+};
+
+template <typename Derived>
+struct Shiftable {
+    template <typename Exp>
+    inline constexpr auto operator<<(NonNegative<Exp> exponent) const {
+        return derived().shiftLeft(exponent);
+    }
+
+    template <typename Exp>
+    inline constexpr auto operator>>(NonNegative<Exp> exponent) const {
+        return derived().shiftRight(exponent);
+    }
+    
+    template <typename Exp>
+    inline constexpr auto operator<<(Clamped<Exp> exponent) const {
+        return derived().shiftLeft(exponent);
+    }
+
+    template <typename Exp>
+    inline constexpr auto operator>>(Clamped<Exp> exponent) const {
+        return derived().shiftRight(exponent);
+    }
+    
+    template <typename Exp>
+    inline constexpr auto operator<<(MaybeNegative<Exp> exponent) const {
+        return exponent.isPositive() ? derived() << exponent.toNonNegative() : derived() >> exponent.toNonNegativeOpposite();
+    }
+
+    template <typename Exp>
+    inline constexpr auto operator>>(MaybeNegative<Exp> exponent) const {
+        return exponent.isPositive() ? derived() >> exponent.toNonNegative() : derived() << exponent.toNonNegativeOpposite();
+    }
+    
+    inline constexpr auto derived() const {
+        return static_cast<const Derived&>(*this);
+    }
+};
+
 /** Wrap any base or exponent that is possibly negative in MaybeNegative. */
 template <typename T>
-struct MaybeNegative : public ShiftDomain<T> {
+struct MaybeNegative : public ShiftDomain<T>, public Shiftable<MaybeNegative<T>> {
     using value_type = T;
 
     using ShiftDomain<T>::value;
 
     inline constexpr explicit MaybeNegative(T value) : ShiftDomain<T>(value) {}
-
-    template <typename Exp>
-    inline constexpr auto operator<<(NonNegative<Exp> exponent) const {
-        return value > 0 ? value << exponent.template clamped<T>() : -((-value) << exponent.template clamped<T>());
-    }
-
-    template <typename Exp>
-    inline constexpr auto operator>>(NonNegative<Exp> exponent) const {
-        return value > 0 ? value >> exponent.template clamped<T>() : ~((~value) >> exponent.template clamped<T>());
-    }
-
-    template <typename Exp>
-    inline constexpr auto operator<<(MaybeNegative<Exp> exponent) const {
-        return exponent.isPositive() ? *this << exponent.toNonNegative() : *this >> exponent.toNonNegativeOpposite();
-    }
-
-    template <typename Exp>
-    inline constexpr auto operator>>(MaybeNegative<Exp> exponent) const {
-        return exponent.isPositive() ? *this >> exponent.toNonNegative() : *this << exponent.toNonNegativeOpposite();
-    }
 
     inline constexpr bool isPositive() const {
         return value > 0;
@@ -86,42 +142,47 @@ struct MaybeNegative : public ShiftDomain<T> {
     inline constexpr auto toNonNegativeOpposite() const {
         return NonNegative<T>(-value);
     }
+
+protected:
+    template <typename Exp>
+    inline constexpr auto shiftLeft(Exp exponent) const {
+        return value > 0 ? value << BitWidth<T>::clamp(exponent).value : -((-value) << BitWidth<T>::clamp(exponent)).value;
+    }
+    
+    template <typename Exp>
+    inline constexpr auto shiftRight(Exp exponent) const {
+        return value > 0 ? value >> BitWidth<T>::clamp(exponent).value : ~((~value) >> BitWidth<T>::clamp(exponent)).value;
+    }
+    
+    friend struct Shiftable<MaybeNegative<T>>;
 };
 
 /** Wrap any base or exponent that is guaranteed to be either positive or zero in NonNegative. */
 template <typename T>
-struct NonNegative : public ShiftDomain<T> {
+struct NonNegative : public ShiftDomain<T>, public Shiftable<NonNegative<T>> {
     using value_type = T;
 
     using ShiftDomain<T>::value;
 
     inline constexpr explicit NonNegative(T value) : ShiftDomain<T>(value) {}
 
-    template <typename Exp>
-    inline constexpr auto operator<<(NonNegative<Exp> exponent) const {
-        return value << exponent.template clamped<T>();
-    }
-
-    template <typename Exp>
-    inline constexpr auto operator>>(NonNegative<Exp> exponent) const {
-        return value >> exponent.template clamped<T>();
-    }
-
-    template <typename Exp>
-    inline constexpr auto operator<<(MaybeNegative<Exp> exponent) const {
-        return exponent.isPositive() ? *this << exponent.toNonNegative() : *this >> exponent.toNonNegativeOpposite();
-    }
-
-    template <typename Exp>
-    inline constexpr auto operator>>(MaybeNegative<Exp> exponent) const {
-        return exponent.isPositive() ? *this >> exponent.toNonNegative() : *this << exponent.toNonNegativeOpposite();
-    }
-
     template <typename X>
-    inline constexpr auto clamped() const {
-        constexpr auto ShiftLimit = 8 * sizeof(X) - 1;
-        return value & ShiftLimit;
+    inline constexpr bool operator>(BitWidth<X> other) {
+        return value > other.value;
     }
+
+protected:
+    template <typename Exp>
+    inline constexpr auto shiftLeft(Exp exponent) const {
+        return value << BitWidth<T>::clamp(exponent).value;
+    }
+    
+    template <typename Exp>
+    inline constexpr auto shiftRight(Exp exponent) const {
+        return value >> BitWidth<T>::clamp(exponent).value;
+    }
+    
+    friend struct Shiftable<NonNegative<T>>;
 };
 
 }

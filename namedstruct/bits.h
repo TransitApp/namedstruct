@@ -173,21 +173,25 @@ namespace namedstruct {
     }
 
     static inline uint32_t readBits(const void* pData, int bitOffset, int numBits) {
+        constexpr BitWidth<uint32_t> bitwidth;
+
         const void* pFirst = advance(pData, bitOffset >> 5);
-        int bitAddress = bitOffset & 0x1F;
-        uint32_t first  = getUInt32(pFirst) >> bitAddress; //bit address should always be < 32
-        uint32_t second = ((bitAddress + numBits > 32)?
-                           (getUInt32(advance(pFirst, 1)) << (32-bitAddress))
+        auto bitAddress = bitwidth.clamp(NonNegative(bitOffset));
+        uint32_t first  = NonNegative(getUInt32(pFirst)) >> bitAddress; //bit address should always be < 32
+        uint32_t second = ((bitAddress + NonNegative(numBits) > bitwidth)?
+                           (NonNegative(getUInt32(advance(pFirst, 1))) << (bitwidth - bitAddress))
                            :0);
         return getLSB(first | second, numBits);
     }
 
     static inline void startReadBits(const void* &pData,int bitOffset,
                                      uint32_t &currentWord, int &currentBitsLeftInWord) {
+        constexpr BitWidth<uint32_t> bitwidth;
+
         pData = advance(pData, bitOffset>>5); //get pointer to the correct location
-        int bitAddress = bitOffset & 0x1F;
-        currentWord = getUInt32(pData) >> bitAddress;
-        currentBitsLeftInWord = 32 - bitAddress;
+        auto bitAddress = bitwidth.clamp(NonNegative(bitOffset));
+        currentWord = NonNegative(getUInt32(pData)) >> bitAddress;
+        currentBitsLeftInWord = (bitwidth - bitAddress).value;
     }
 
     static inline int getBitOffset(const void* pDataOriginal, const void* pDataNow, int currentBitsLeftInWord) {
@@ -248,12 +252,14 @@ namespace namedstruct {
     static inline void startReversedReadBits(const void* &pData,int bitOffset,
                                              uint32_t &currentWord,
                                              int &currentBitsLeftInWord) {
-        int bitAddress = ((bitOffset-1) & 0x1F)+1; // get lower bits, but 32->32, 0->32
+        constexpr BitWidth<uint32_t> bitwidth;
+
+        auto bitAddress = bitwidth.clamp(NonNegative(bitOffset-1)) + NonNegative(1); // get lower bits, but 32->32, 0->32
         pData = advance(pData, // get pointer to the correct location
                         +(bitOffset>>5)
-                        -(bitAddress>>5)); // if bit Address is 32, we read the previous word
-        currentWord = getUInt32(pData) << ((32 - bitAddress) & 0x1F);
-        currentBitsLeftInWord = bitAddress;
+                        -(bitAddress >> NonNegative(5))); // if bit Address is 32, we read the previous word
+        currentWord = NonNegative(getUInt32(pData)) << (bitwidth - bitAddress);
+        currentBitsLeftInWord = bitAddress.value;
     }
     
     static inline uint32_t readPreviousBits(const void* &pData,uint32_t &currentWord,
