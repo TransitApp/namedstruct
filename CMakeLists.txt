@@ -5,7 +5,7 @@ set(CMAKE_XCODE_GENERATE_SCHEME TRUE)
 
 project(namedstruct LANGUAGES CXX C)
 
-add_library(namedstruct namedstruct/bits.h namedstruct/bits.cpp)
+add_library(namedstruct namedstruct/bits.h namedstruct/bits.cpp namedstruct/shifts.h)
 
 set_property(TARGET namedstruct PROPERTY CXX_STANDARD 17)
 set_property(TARGET namedstruct PROPERTY CXX_STANDARD_REQUIRED ON)
@@ -21,6 +21,7 @@ if(APPLE AND ${CMAKE_VERSION} VERSION_GREATER 3.8.2016 AND XCTest_FOUND)
         ${PROJECT_SOURCE_DIR}/namedstruct/localTestFiles
         namedstruct/namedStructTests.h
         namedstruct/namedStructTests.mm
+        namedstruct/shiftTests.mm
         namedstruct/testBits.mm
     )
 
