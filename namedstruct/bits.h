@@ -177,16 +177,22 @@ namespace namedstruct {
         return result;
     }
 
+    /** calculates the absolute minimum number of bits needed to store an integer Num. */
     template <std::size_t Num>
     static constexpr std::size_t numbits() {
         constexpr auto SmallerNum = Num >> 1;
         return Num == 0 ? 0 : numbits<SmallerNum>() + 1;
     }
 
+    /** calculates x / WordWidth using a right shift */
     static inline auto fastDivisionByWordWidth(int x) {
         return x >> numbits<WordWidth - 1>();
     }
 
+    /** Masks the shift exponent to n bits to mimic IA-32 behaviour. For instance, n = 5 when shifting a 32-bit word.
+     *  (SAL/SAR/SHL/SHR – Shift, Chapter 4. Instruction Set Reference, IA-32 Intel Architecture Software Developer’s
+     *   Manual)
+     */
     static inline auto masked(int x) {
         return Shift<Word>::masked(x);
     }
