@@ -168,16 +168,17 @@ namespace namedstruct {
         return reinterpret_cast<const void*>(reinterpret_cast<const Word*>(pData) + numWords);
     }
 
+    /** returns the Word at the memory location starting at the given pointer, stored in little endian order. */
     static inline Word getWord(const void* littleEndianData) {
-        static_assert(sizeof(Word) == 4);
-        Word result = reinterpret_cast<const uint8_t*>(littleEndianData)[0];
-        result |= reinterpret_cast<const uint8_t*>(littleEndianData)[1] << 8;
-        result |= reinterpret_cast<const uint8_t*>(littleEndianData)[2] << 16;
-        result |= reinterpret_cast<const uint8_t*>(littleEndianData)[3] << 24;
+        Word result = 0;
+        for (std::size_t i = 0; i < sizeof(Word); ++i) {
+            result |= reinterpret_cast<const uint8_t*>(littleEndianData)[i] << (i * 8);
+        }
         return result;
     }
 
-    /** calculates the absolute minimum number of bits needed to store an integer Num. */
+    /** calculates the absolute minimum number of bits needed to store an integer Num.
+     *  E.g.: numbits<32>() is 6 since 32 = 0b100000. */
     template <std::size_t Num>
     static constexpr std::size_t numbits() {
         constexpr auto SmallerNum = Num >> 1;
