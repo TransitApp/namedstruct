@@ -29,6 +29,8 @@
 #ifndef __namedstruct__shifts__
 #define __namedstruct__shifts__
 
+#include <type_traits>
+
 namespace namedstruct {
 
 template <typename T>
@@ -38,16 +40,33 @@ template <typename T>
 struct MaybeNegative;
 
 template <typename T>
-struct ShiftDomain {
-    T value;
+static constexpr auto BitWidth = 8 * sizeof(T);
 
-    inline constexpr explicit ShiftDomain(T value) : value(value) {}
+template <typename T>
+struct Shift {
+    static constexpr auto Mask = BitWidth<T> - 1;
 
-    ShiftDomain() = delete;
+    template <typename X>
+    std::enable_if_t<std::is_arithmetic<X>::value, X>
+    static inline constexpr masked(X value) {
+        return value & static_cast<X>(Mask);
+    }
+
+    template <typename Obj>
+    std::enable_if_t<!std::is_arithmetic<Obj>::value, typename Obj::value_type>
+    static inline constexpr masked(Obj obj) {
+        return obj.value & static_cast<typename Obj::value_type>(Mask);
+    }
 };
 
-template <typename Derived>
+template <typename T, typename Derived>
 struct Shiftable {
+    T value;
+
+    inline constexpr explicit Shiftable(T value) : value(value) {}
+
+    Shiftable() = delete;
+
     template <typename Exp>
     inline constexpr auto operator<<(MaybeNegative<Exp> exponent) const {
         return exponent.isPositive() ? self() << exponent.toNonNegative() : self() >> exponent.toNonNegativeOpposite();
@@ -66,21 +85,25 @@ private:
 
 /** Wrap any base or exponent that is possibly negative in MaybeNegative. */
 template <typename T>
-struct MaybeNegative : public ShiftDomain<T>, public Shiftable<MaybeNegative<T>> {
+struct MaybeNegative : public Shiftable<T, MaybeNegative<T>> {
     using value_type = T;
 
-    using ShiftDomain<T>::value;
+    using Shiftable<T, MaybeNegative<T>>::value;
 
-    inline constexpr explicit MaybeNegative(T value) : ShiftDomain<T>(value) {}
+    using Shiftable<T, MaybeNegative<T>>::operator<<;
+
+    using Shiftable<T, MaybeNegative<T>>::operator>>;
+
+    inline constexpr explicit MaybeNegative(T value) : Shiftable<T, MaybeNegative<T>>(value) {}
 
     template <typename Exp>
     inline constexpr auto operator<<(NonNegative<Exp> exponent) const {
-        return value > 0 ? value << exponent.template clamped<T>() : -((-value) << exponent.template clamped<T>());
+        return value > 0 ? value << Shift<T>::masked(exponent) : -((-value) << Shift<T>::masked(exponent));
     }
 
     template <typename Exp>
     inline constexpr auto operator>>(NonNegative<Exp> exponent) const {
-        return value > 0 ? value >> exponent.template clamped<T>() : ~((~value) >> exponent.template clamped<T>());
+        return value > 0 ? value >> Shift<T>::masked(exponent) : ~((~value) >> Shift<T>::masked(exponent));
     }
 
     inline constexpr bool isPositive() const {
@@ -98,27 +121,25 @@ struct MaybeNegative : public ShiftDomain<T>, public Shiftable<MaybeNegative<T>>
 
 /** Wrap any base or exponent that is guaranteed to be either positive or zero in NonNegative. */
 template <typename T>
-struct NonNegative : public ShiftDomain<T>, public Shiftable<NonNegative<T>> {
+struct NonNegative : public Shiftable<T, NonNegative<T>> {
     using value_type = T;
 
-    using ShiftDomain<T>::value;
+    using Shiftable<T, NonNegative<T>>::value;
 
-    inline constexpr explicit NonNegative(T value) : ShiftDomain<T>(value) {}
+    using Shiftable<T, NonNegative<T>>::operator<<;
+
+    using Shiftable<T, NonNegative<T>>::operator>>;
+
+    inline constexpr explicit NonNegative(T value) : Shiftable<T, NonNegative<T>>(value) {}
 
     template <typename Exp>
     inline constexpr auto operator<<(NonNegative<Exp> exponent) const {
-        return value << exponent.template clamped<T>();
+        return value << Shift<T>::masked(exponent);
     }
 
     template <typename Exp>
     inline constexpr auto operator>>(NonNegative<Exp> exponent) const {
-        return value >> exponent.template clamped<T>();
-    }
-
-    template <typename X>
-    inline constexpr auto clamped() const {
-        constexpr auto ShiftLimit = 8 * sizeof(X) - 1;
-        return value & ShiftLimit;
+        return value >> Shift<T>::masked(exponent);
     }
 };
 
