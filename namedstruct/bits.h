@@ -170,23 +170,25 @@ namespace namedstruct {
 
     /** returns the Word at the memory location starting at the given pointer, stored in little endian order. */
     static inline Word getWord(const void* littleEndianData) {
+        #define GET_BYTE(data, i) static_cast<Word>(reinterpret_cast<const uint8_t*>(data)[i])
         static_assert(sizeof(Word) == 4 || sizeof(Word) == 8);
 
         // manually-unrolled loop so even clang with -O1 can optimize this to a single instruction
         Word result = 0;
-        result |= reinterpret_cast<const uint8_t*>(littleEndianData)[0];
-        result |= reinterpret_cast<const uint8_t*>(littleEndianData)[1] << 8;
-        result |= reinterpret_cast<const uint8_t*>(littleEndianData)[2] << 16;
-        result |= reinterpret_cast<const uint8_t*>(littleEndianData)[3] << 24;
+        result |= GET_BYTE(littleEndianData, 0);
+        result |= GET_BYTE(littleEndianData, 1) << 8;
+        result |= GET_BYTE(littleEndianData, 2) << 16;
+        result |= GET_BYTE(littleEndianData, 3) << 24;
 
         if constexpr (sizeof(Word) == 8) { // future-proofing the code
-            result |= reinterpret_cast<const uint8_t*>(littleEndianData)[4] << 32;
-            result |= reinterpret_cast<const uint8_t*>(littleEndianData)[5] << 40;
-            result |= reinterpret_cast<const uint8_t*>(littleEndianData)[6] << 48;
-            result |= reinterpret_cast<const uint8_t*>(littleEndianData)[7] << 56;
+            result |= GET_BYTE(littleEndianData, 4) << 32;
+            result |= GET_BYTE(littleEndianData, 5) << 40;
+            result |= GET_BYTE(littleEndianData, 6) << 48;
+            result |= GET_BYTE(littleEndianData, 7) << 56;
         }
 
         return result;
+        #undef GET_BYTE
     }
 
     /** calculates the absolute minimum number of bits needed to store an integer Num.
