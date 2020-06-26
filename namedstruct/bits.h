@@ -231,7 +231,7 @@ namespace namedstruct {
     }
 
     static inline int getBitOffset(const void* pDataOriginal, const void* pDataNow, int currentBitsLeftInWord) {
-        return int((intptr_t(pDataNow)-intptr_t(pDataOriginal))<<3) + (32-currentBitsLeftInWord);
+        return int((intptr_t(pDataNow)-intptr_t(pDataOriginal))<<3) + (WordWidth - currentBitsLeftInWord);
     }
     
     
