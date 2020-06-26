@@ -37,28 +37,28 @@ namespace namedstruct {
     /**
      reads numBits bits bitOffset bits away from data and returns it as an uint32.
      numBits has to be <= 31. Will always access the 32-bit memory value that this points to. */
-    static inline Word readBits(const void* pData,int bitOffset,int numBits);
+    static inline Word readBits(const void* pData, int bitOffset, int numBits);
     
     /** Sets up the sequential reading of bit values.
      The currentWord and currentBitsLeftInWord will be assigned by this, and the data
      pointer will be pointed at the current word that is being read. To use the
      "readNext" functions, the pData, currentWord and currentBitsLeft in word have to be
      supplied. This will ensure that words are only loaded as needed. */
-    static inline void startReadBits(const void* &pData,int bitOffset,
+    static inline void startReadBits(const void* &pData, int bitOffset,
                                      Word &currentWord, int &currentBitsLeftInWord);
     
     /** peforms a sequential reading of bit values. numBits has to be <= 31.
      pData, currentWord and currentBitsLeftInWord Have to be initialized by startReadBits */
-    static inline Word readNextBits(const void* &pData,Word &currentWord,
-                                        int &currentBitsLeftInWord,int numBits);
+    static inline Word readNextBits(const void* &pData, Word &currentWord,
+                                        int &currentBitsLeftInWord, int numBits);
     
     /** performs a sequential read of a single bit value
      pData, currentWord and currentBitsLeftInWord Have to be initialized by startReadBits */
-    static inline int readNextBit(const void* &pData,Word &currentWord,int &currentBitsLeftInWord);
+    static inline int readNextBit(const void* &pData, Word &currentWord, int &currentBitsLeftInWord);
     
     /** while performing a sequential read operation, skips ahead by numBits, where numBits >= 0 */
-    static inline void skipNextBits(const void* &pData,Word &currentWord,
-                                    int &currentBitsLeftInWord,int numBits);
+    static inline void skipNextBits(const void* &pData, Word &currentWord,
+                                    int &currentBitsLeftInWord, int numBits);
     
     /** given the data pointer given to startReadBits, the current data pointer, and the
      current bits left in word, returns the bit offset from the original data pointer
@@ -71,20 +71,20 @@ namespace namedstruct {
      pointer will be pointed at the current word that is being read. To use the
      "readPrevious" functions, the pData, currentWord and currentBitsLeft in word have to be
      supplied. This will ensure that words are only loaded as needed. */
-    static inline void startReversedReadBits(const void* &pData,int bitOffset,
+    static inline void startReversedReadBits(const void* &pData, int bitOffset,
                                              Word &currentWord, int &currentBitsLeftInWord);
     
     /** performs a reverse sequential read of a single bit value.
      pData, currentWord and currentBitsLeftInWord Have to be initialized by startReversedReadBits.
      The returned bit is the the one that comes before the current location. */
-    static inline int readPreviousBit(const void* &pData,Word &currentWord,int &currentBitsLeftInWord);
+    static inline int readPreviousBit(const void* &pData, Word &currentWord, int &currentBitsLeftInWord);
     
     /** performs a reverse sequential read of bit values. numBits has to be <= 31.
      pData, currentWord and currentBitsLeftInWord Have to be initialized by startReversedReadBits.
      This will first step backwards by numBits bits, and then return numBits bits starting at
      that location. */
-    static inline Word readPreviousBits(const void* &pData,Word &currentWord,
-                                            int &currentBitsLeftInWord,int numBits);
+    static inline Word readPreviousBits(const void* &pData, Word &currentWord,
+                                            int &currentBitsLeftInWord, int numBits);
     
     /**
      returns the number of bits required to store the given number: 0 -> 0, 255 -> 8, 256 -> 9 */
@@ -201,7 +201,7 @@ namespace namedstruct {
         return getLSB(first | second, numBits);
     }
 
-    static inline void startReadBits(const void* &pData,int bitOffset,
+    static inline void startReadBits(const void* &pData, int bitOffset,
                                      Word &currentWord, int &currentBitsLeftInWord) {
         pData = advance(pData, fastDivisionByWordWidth(bitOffset)); //get pointer to the correct location
         int bitAddress = masked(bitOffset);
@@ -236,7 +236,7 @@ namespace namedstruct {
         return 0;
     }
     
-    static inline int readNextBit(const void* &pData,Word &currentWord,int &currentBitsLeftInWord) {
+    static inline int readNextBit(const void* &pData, Word &currentWord, int &currentBitsLeftInWord) {
         if (__builtin_expect(currentBitsLeftInWord == 0, 0)) {
             pData = advance(pData, 1); //advance pointer
             currentWord = getWord(pData);
@@ -248,8 +248,8 @@ namespace namedstruct {
         return result;
     }
     
-    static inline void skipNextBits(const void* &pData,Word &currentWord,
-                                    int &currentBitsLeftInWord,int numBits){
+    static inline void skipNextBits(const void* &pData, Word &currentWord,
+                                    int &currentBitsLeftInWord, int numBits){
         if (numBits < currentBitsLeftInWord) {
             currentBitsLeftInWord -= numBits;
             currentWord >>= numBits;
@@ -260,11 +260,11 @@ namespace namedstruct {
         /*
          //TODO - dummy implementation, do something better and test it
          for (int i = 0; i < numBits; i++){
-         readNextBit(pData,currentWord,currentBitsLeftInWord);
+         readNextBit(pData, currentWord, currentBitsLeftInWord);
          }*/
     }
 
-    static inline void startReversedReadBits(const void* &pData,int bitOffset,
+    static inline void startReversedReadBits(const void* &pData, int bitOffset,
                                              Word &currentWord,
                                              int &currentBitsLeftInWord) {
         int bitAddress = masked(bitOffset-1) + 1; // get lower bits, but 32->32, 0->32
@@ -275,7 +275,7 @@ namespace namedstruct {
         currentBitsLeftInWord = bitAddress;
     }
     
-    static inline Word readPreviousBits(const void* &pData,Word &currentWord,
+    static inline Word readPreviousBits(const void* &pData, Word &currentWord,
                                             int &currentBitsLeftInWord, int numBits) {
         if (numBits > currentBitsLeftInWord) {
             // data is in current word, and previous
@@ -300,7 +300,7 @@ namespace namedstruct {
         return 0;
     }
     
-    static inline int readPreviousBit(const void* &pData,Word &currentWord,int &currentBitsLeftInWord) {
+    static inline int readPreviousBit(const void* &pData, Word &currentWord, int &currentBitsLeftInWord) {
         if (__builtin_expect(currentBitsLeftInWord == 0, 0)) {
             pData = advance(pData, -1); //step pointer backwards
             currentWord = getWord(pData);
