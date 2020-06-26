@@ -192,16 +192,16 @@ namespace namedstruct {
     }
 
     /** calculates the absolute minimum number of bits needed to store an integer Num.
-     *  E.g.: numBits<32>() is 6 since 32 = 0b100000. */
+     *  E.g.: bitSize<32>() is 6 since 32 = 0b100000. */
     template <std::size_t Num>
-    static constexpr std::size_t numBits() {
+    static constexpr std::size_t bitSize() {
         constexpr auto SmallerNum = Num >> 1;
-        return Num == 0 ? 0 : numBits<SmallerNum>() + 1;
+        return Num == 0 ? 0 : bitSize<SmallerNum>() + 1;
     }
 
     /** calculates x / WordWidth using a right shift */
     static inline auto fastDivisionByWordWidth(int x) {
-        return x >> numBits<WordWidth - 1>();
+        return x >> bitSize<WordWidth - 1>();
     }
 
     /** Masks the shift exponent to n bits to mimic IA-32 behaviour. For instance, n = 5 when shifting a 32-bit word.
