@@ -5,7 +5,13 @@ set(CMAKE_XCODE_GENERATE_SCHEME TRUE)
 
 project(namedstruct LANGUAGES CXX C)
 
-add_library(namedstruct namedstruct/bits.h namedstruct/bits.cpp namedstruct/shifts.h)
+add_library(namedstruct
+    namedstruct/bits.h
+    namedstruct/bits.cpp
+    namedstruct/getlsb.h
+    namedstruct/shifts.h
+    namedstruct/zigzag.h
+)
 
 set_property(TARGET namedstruct PROPERTY CXX_STANDARD 17)
 set_property(TARGET namedstruct PROPERTY CXX_STANDARD_REQUIRED ON)

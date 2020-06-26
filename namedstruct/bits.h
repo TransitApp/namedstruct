@@ -16,7 +16,9 @@
 #ifndef bgtfsLib_bits_h
 #define bgtfsLib_bits_h
 
+#include "getlsb.h"
 #include "shifts.h"
+#include "zigzag.h"
 #include <cmath>
 #include <limits>
 #include <stdint.h>
@@ -24,13 +26,6 @@
 
 namespace namedstruct {
     /* Documentation **********************************************************************/
-
-    /** ZigZag-encodes an integer */
-    template <typename Int>
-    static inline typename std::make_unsigned<Int>::type zigZagEncode(Int num);
-
-    /** extracts the numBits least-significant bits from a word. */
-    static inline uint32_t getLSB(uint32_t word, int numBits);
 
     /**
      reads numBits bits bitOffset bits away from data and returns it as an uint32.
@@ -147,18 +142,6 @@ namespace namedstruct {
     };
 
     /* Implementations *****************************************************************/
-
-    template <typename Int>
-    static inline typename std::make_unsigned<Int>::type zigZagEncode(Int num) {
-        static_assert(std::numeric_limits<Int>::is_integer && std::numeric_limits<Int>::is_signed);
-        using UInt = typename std::make_unsigned<Int>::type;
-        return (static_cast<UInt>(num) << 1) ^ -(static_cast<UInt>(num) >> (sizeof(Int) * 8 - 1));
-    }
-
-    static inline uint32_t getLSB(uint32_t word, int numBits) {
-        // TODO: use BEXTR on Intel and UBFX on ARM
-        return numBits >= 32 ? word : word & ((static_cast<uint32_t>(1) << numBits) - 1);
-    }
 
     static inline const void* advance(const void* pData, int num32BitWords) {
         return reinterpret_cast<const void*>(reinterpret_cast<const uint32_t*>(pData) + num32BitWords);
