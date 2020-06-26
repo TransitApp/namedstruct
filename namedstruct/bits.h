@@ -170,10 +170,22 @@ namespace namedstruct {
 
     /** returns the Word at the memory location starting at the given pointer, stored in little endian order. */
     static inline Word getWord(const void* littleEndianData) {
+        static_assert(sizeof(Word) == 4 || sizeof(Word) == 8);
+
+        // manually-unrolled loop so even clang with -O1 can optimize this to a single instruction
         Word result = 0;
-        for (std::size_t i = 0; i < sizeof(Word); ++i) {
-            result |= reinterpret_cast<const uint8_t*>(littleEndianData)[i] << (i * 8);
+        result |= reinterpret_cast<const uint8_t*>(littleEndianData)[0];
+        result |= reinterpret_cast<const uint8_t*>(littleEndianData)[1] << 8;
+        result |= reinterpret_cast<const uint8_t*>(littleEndianData)[2] << 16;
+        result |= reinterpret_cast<const uint8_t*>(littleEndianData)[3] << 24;
+
+        if constexpr (sizeof(Word) == 8) { // future-proofing the code
+            result |= reinterpret_cast<const uint8_t*>(littleEndianData)[4] << 32;
+            result |= reinterpret_cast<const uint8_t*>(littleEndianData)[5] << 40;
+            result |= reinterpret_cast<const uint8_t*>(littleEndianData)[6] << 48;
+            result |= reinterpret_cast<const uint8_t*>(littleEndianData)[7] << 56;
         }
+
         return result;
     }
 
