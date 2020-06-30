@@ -27,22 +27,23 @@
 
 #pragma mark - tests
 
-- (void)testClamp {
+- (void)testMask {
+    using namedstruct::Shift;
     using namedstruct::NonNegative;
 
     constexpr auto x = NonNegative(std::numeric_limits<uint64_t>::max());
 
-    XCTAssertEqual(x.clamped<std::int8_t>(), 7);
-    XCTAssertEqual(x.clamped<std::uint8_t>(), 7);
+    XCTAssertEqual(Shift<std::int8_t>::masked(x), 7);
+    XCTAssertEqual(Shift<std::uint8_t>::masked(x), 7);
 
-    XCTAssertEqual(x.clamped<std::int16_t>(), 15);
-    XCTAssertEqual(x.clamped<std::uint16_t>(), 15);
+    XCTAssertEqual(Shift<std::int16_t>::masked(x), 15);
+    XCTAssertEqual(Shift<std::uint16_t>::masked(x), 15);
 
-    XCTAssertEqual(x.clamped<std::int32_t>(), 31);
-    XCTAssertEqual(x.clamped<std::uint32_t>(), 31);
+    XCTAssertEqual(Shift<std::int32_t>::masked(x), 31);
+    XCTAssertEqual(Shift<std::uint32_t>::masked(x), 31);
 
-    XCTAssertEqual(x.clamped<std::int64_t>(), 63);
-    XCTAssertEqual(x.clamped<std::uint64_t>(), 63);
+    XCTAssertEqual(Shift<std::int64_t>::masked(x), 63);
+    XCTAssertEqual(Shift<std::uint64_t>::masked(x), 63);
 }
 
 - (void)testArithmeticShiftLeftPositive {

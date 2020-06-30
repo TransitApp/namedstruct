@@ -23,6 +23,8 @@
 #include <type_traits>
 
 namespace namedstruct {
+    using Word = uint32_t;
+
     /* Documentation **********************************************************************/
 
     /** ZigZag-encodes an integer */
@@ -30,33 +32,33 @@ namespace namedstruct {
     static inline typename std::make_unsigned<Int>::type zigZagEncode(Int num);
 
     /** extracts the numBits least-significant bits from a word. */
-    static inline uint32_t getLSB(uint32_t word, int numBits);
+    static inline Word getLSB(Word word, int numBits);
 
     /**
      reads numBits bits bitOffset bits away from data and returns it as an uint32.
      numBits has to be <= 31. Will always access the 32-bit memory value that this points to. */
-    static inline uint32_t readBits(const void* pData,int bitOffset,int numBits);
+    static inline Word readBits(const void* pData, int bitOffset, int numBits);
     
     /** Sets up the sequential reading of bit values.
      The currentWord and currentBitsLeftInWord will be assigned by this, and the data
      pointer will be pointed at the current word that is being read. To use the
      "readNext" functions, the pData, currentWord and currentBitsLeft in word have to be
      supplied. This will ensure that words are only loaded as needed. */
-    static inline void startReadBits(const void* &pData,int bitOffset,
-                                     uint32_t &currentWord, int &currentBitsLeftInWord);
+    static inline void startReadBits(const void* &pData, int bitOffset,
+                                     Word &currentWord, int &currentBitsLeftInWord);
     
     /** peforms a sequential reading of bit values. numBits has to be <= 31.
      pData, currentWord and currentBitsLeftInWord Have to be initialized by startReadBits */
-    static inline uint32_t readNextBits(const void* &pData,uint32_t &currentWord,
-                                        int &currentBitsLeftInWord,int numBits);
+    static inline Word readNextBits(const void* &pData, Word &currentWord,
+                                        int &currentBitsLeftInWord, int numBits);
     
     /** performs a sequential read of a single bit value
      pData, currentWord and currentBitsLeftInWord Have to be initialized by startReadBits */
-    static inline int readNextBit(const void* &pData,uint32_t &currentWord,int &currentBitsLeftInWord);
+    static inline int readNextBit(const void* &pData, Word &currentWord, int &currentBitsLeftInWord);
     
     /** while performing a sequential read operation, skips ahead by numBits, where numBits >= 0 */
-    static inline void skipNextBits(const void* &pData,uint32_t &currentWord,
-                                    int &currentBitsLeftInWord,int numBits);
+    static inline void skipNextBits(const void* &pData, Word &currentWord,
+                                    int &currentBitsLeftInWord, int numBits);
     
     /** given the data pointer given to startReadBits, the current data pointer, and the
      current bits left in word, returns the bit offset from the original data pointer
@@ -69,20 +71,20 @@ namespace namedstruct {
      pointer will be pointed at the current word that is being read. To use the
      "readPrevious" functions, the pData, currentWord and currentBitsLeft in word have to be
      supplied. This will ensure that words are only loaded as needed. */
-    static inline void startReversedReadBits(const void* &pData,int bitOffset,
-                                             uint32_t &currentWord, int &currentBitsLeftInWord);
+    static inline void startReversedReadBits(const void* &pData, int bitOffset,
+                                             Word &currentWord, int &currentBitsLeftInWord);
     
     /** performs a reverse sequential read of a single bit value.
      pData, currentWord and currentBitsLeftInWord Have to be initialized by startReversedReadBits.
      The returned bit is the the one that comes before the current location. */
-    static inline int readPreviousBit(const void* &pData,uint32_t &currentWord,int &currentBitsLeftInWord);
+    static inline int readPreviousBit(const void* &pData, Word &currentWord, int &currentBitsLeftInWord);
     
     /** performs a reverse sequential read of bit values. numBits has to be <= 31.
      pData, currentWord and currentBitsLeftInWord Have to be initialized by startReversedReadBits.
      This will first step backwards by numBits bits, and then return numBits bits starting at
      that location. */
-    static inline uint32_t readPreviousBits(const void* &pData,uint32_t &currentWord,
-                                            int &currentBitsLeftInWord,int numBits);
+    static inline Word readPreviousBits(const void* &pData, Word &currentWord,
+                                            int &currentBitsLeftInWord, int numBits);
     
     /**
      returns the number of bits required to store the given number: 0 -> 0, 255 -> 8, 256 -> 9 */
@@ -103,7 +105,7 @@ namespace namedstruct {
             startReadBits(this->pData, bitOffset, currentWord, bitsLeft);
         }
 
-        inline uint32_t readNextBit() {
+        inline Word readNextBit() {
             return namedstruct::readNextBit(pData, currentWord, bitsLeft);
         }
 
@@ -112,7 +114,7 @@ namespace namedstruct {
             return readNextBit();
         }
 
-        inline uint32_t readNextBits(int numBits) {
+        inline Word readNextBits(int numBits) {
             return namedstruct::readNextBits(pData, currentWord, bitsLeft, numBits);
         }
 
@@ -136,80 +138,118 @@ namespace namedstruct {
             return bitsLeft;
         }
 
-        inline uint32_t getCurrentWord() const {
+        inline Word getCurrentWord() const {
             return currentWord;
         }
 
     private:
         const void* pData;
         int bitsLeft;
-        uint32_t currentWord;
+        Word currentWord;
     };
 
     /* Implementations *****************************************************************/
+
+    constexpr auto WordWidth = BitWidth<Word>;
 
     template <typename Int>
     static inline typename std::make_unsigned<Int>::type zigZagEncode(Int num) {
         static_assert(std::numeric_limits<Int>::is_integer && std::numeric_limits<Int>::is_signed);
         using UInt = typename std::make_unsigned<Int>::type;
-        return (static_cast<UInt>(num) << 1) ^ -(static_cast<UInt>(num) >> (sizeof(Int) * 8 - 1));
+        return (static_cast<UInt>(num) << 1) ^ -(static_cast<UInt>(num) >> (BitWidth<Int> - 1));
     }
 
-    static inline uint32_t getLSB(uint32_t word, int numBits) {
+    static inline Word getLSB(Word word, int numBits) {
         // TODO: use BEXTR on Intel and UBFX on ARM
-        return numBits >= 32 ? word : word & ((static_cast<uint32_t>(1) << numBits) - 1);
+        return numBits >= WordWidth ? word : word & ((static_cast<Word>(1) << numBits) - 1);
     }
 
-    static inline const void* advance(const void* pData, int num32BitWords) {
-        return reinterpret_cast<const void*>(reinterpret_cast<const uint32_t*>(pData) + num32BitWords);
+    static inline const void* advance(const void* pData, int numWords) {
+        return reinterpret_cast<const void*>(reinterpret_cast<const Word*>(pData) + numWords);
     }
 
-    static inline uint32_t getUInt32(const void* littleEndianData) {
-        uint32_t result = reinterpret_cast<const uint8_t*>(littleEndianData)[0];
-        result |= reinterpret_cast<const uint8_t*>(littleEndianData)[1] << 8;
-        result |= reinterpret_cast<const uint8_t*>(littleEndianData)[2] << 16;
-        result |= reinterpret_cast<const uint8_t*>(littleEndianData)[3] << 24;
+    /** returns the Word at the memory location starting at the given pointer, stored in little endian order. */
+    static inline Word getWord(const void* littleEndianData) {
+        #define GET_BYTE(data, i) static_cast<Word>(reinterpret_cast<const uint8_t*>(data)[i])
+        static_assert(sizeof(Word) == 4 || sizeof(Word) == 8);
+
+        // manually-unrolled loop so even clang with -O1 can optimize this to a single instruction
+        Word result = 0;
+        result |= GET_BYTE(littleEndianData, 0);
+        result |= GET_BYTE(littleEndianData, 1) << 8;
+        result |= GET_BYTE(littleEndianData, 2) << 16;
+        result |= GET_BYTE(littleEndianData, 3) << 24;
+
+        if constexpr (sizeof(Word) == 8) { // future-proofing the code
+            result |= GET_BYTE(littleEndianData, 4) << 32;
+            result |= GET_BYTE(littleEndianData, 5) << 40;
+            result |= GET_BYTE(littleEndianData, 6) << 48;
+            result |= GET_BYTE(littleEndianData, 7) << 56;
+        }
+
         return result;
+        #undef GET_BYTE
     }
 
-    static inline uint32_t readBits(const void* pData, int bitOffset, int numBits) {
-        const void* pFirst = advance(pData, bitOffset >> 5);
-        int bitAddress = bitOffset & 0x1F;
-        uint32_t first  = getUInt32(pFirst) >> bitAddress; //bit address should always be < 32
-        uint32_t second = ((bitAddress + numBits > 32)?
-                           (getUInt32(advance(pFirst, 1)) << (32-bitAddress))
+    /** calculates the absolute minimum number of bits needed to store an integer Num.
+     *  E.g.: bitSize<32>() is 6 since 32 = 0b100000. */
+    template <std::size_t Num>
+    static constexpr std::size_t bitSize() {
+        constexpr auto SmallerNum = Num >> 1;
+        return Num == 0 ? 0 : bitSize<SmallerNum>() + 1;
+    }
+
+    /** calculates x / WordWidth using a right shift */
+    static inline auto fastDivisionByWordWidth(int x) {
+        return x >> bitSize<WordWidth - 1>();
+    }
+
+    /** Masks the shift exponent to n bits to mimic IA-32 behaviour. For instance, n = 5 when shifting a 32-bit word.
+     *  (SAL/SAR/SHL/SHR – Shift, Chapter 4. Instruction Set Reference, IA-32 Intel Architecture Software Developer’s
+     *   Manual)
+     */
+    static inline auto masked(int x) {
+        return Shift<Word>::masked(x);
+    }
+
+    static inline Word readBits(const void* pData, int bitOffset, int numBits) {
+        const void* pFirst = advance(pData, fastDivisionByWordWidth(bitOffset));
+        int bitAddress = masked(bitOffset);
+        Word first  = getWord(pFirst) >> bitAddress; //bit address should always be < 32
+        Word second = ((bitAddress + numBits > WordWidth)?
+                           (getWord(advance(pFirst, 1)) << (WordWidth - bitAddress))
                            :0);
         return getLSB(first | second, numBits);
     }
 
-    static inline void startReadBits(const void* &pData,int bitOffset,
-                                     uint32_t &currentWord, int &currentBitsLeftInWord) {
-        pData = advance(pData, bitOffset>>5); //get pointer to the correct location
-        int bitAddress = bitOffset & 0x1F;
-        currentWord = getUInt32(pData) >> bitAddress;
-        currentBitsLeftInWord = 32 - bitAddress;
+    static inline void startReadBits(const void* &pData, int bitOffset,
+                                     Word &currentWord, int &currentBitsLeftInWord) {
+        pData = advance(pData, fastDivisionByWordWidth(bitOffset)); //get pointer to the correct location
+        int bitAddress = masked(bitOffset);
+        currentWord = getWord(pData) >> bitAddress;
+        currentBitsLeftInWord = WordWidth - bitAddress;
     }
 
     static inline int getBitOffset(const void* pDataOriginal, const void* pDataNow, int currentBitsLeftInWord) {
-        return int((intptr_t(pDataNow)-intptr_t(pDataOriginal))<<3) + (32-currentBitsLeftInWord);
+        return int((intptr_t(pDataNow)-intptr_t(pDataOriginal))<<3) + (WordWidth - currentBitsLeftInWord);
     }
     
     
-    static inline uint32_t readNextBits(const void* &pData, uint32_t &currentWord,
+    static inline Word readNextBits(const void* &pData, Word &currentWord,
                                         int &currentBitsLeftInWord, int numBits) {
         if (numBits > currentBitsLeftInWord) {
             // data is in current word, and next
             pData = advance(pData, 1); //advance pointer
-            uint32_t nextWord = getUInt32(pData);
+            Word nextWord = getWord(pData);
             numBits = numBits - currentBitsLeftInWord; //number of bits needed from the new word
-            uint32_t result = (currentWord | (getLSB(nextWord, numBits) << currentBitsLeftInWord));
+            Word result = (currentWord | (getLSB(nextWord, numBits) << currentBitsLeftInWord));
             currentWord = nextWord >> numBits;
-            currentBitsLeftInWord = 32 - numBits;
+            currentBitsLeftInWord = WordWidth - numBits;
             return result;
         }
         else {
             // data is contained in current word alone
-            uint32_t result = getLSB(currentWord, numBits); // this is why 32bits don't work
+            Word result = getLSB(currentWord, numBits); // this is why 32bits don't work
             currentBitsLeftInWord -= numBits;
             currentWord >>= numBits;
             return result;
@@ -217,11 +257,11 @@ namespace namedstruct {
         return 0;
     }
     
-    static inline int readNextBit(const void* &pData,uint32_t &currentWord,int &currentBitsLeftInWord) {
+    static inline int readNextBit(const void* &pData, Word &currentWord, int &currentBitsLeftInWord) {
         if (__builtin_expect(currentBitsLeftInWord == 0, 0)) {
             pData = advance(pData, 1); //advance pointer
-            currentWord = getUInt32(pData);
-            currentBitsLeftInWord = 32;
+            currentWord = getWord(pData);
+            currentBitsLeftInWord = WordWidth;
         }
         currentBitsLeftInWord -= 1;
         int32_t result = currentWord & 1;
@@ -229,51 +269,51 @@ namespace namedstruct {
         return result;
     }
     
-    static inline void skipNextBits(const void* &pData,uint32_t &currentWord,
-                                    int &currentBitsLeftInWord,int numBits){
+    static inline void skipNextBits(const void* &pData, Word &currentWord,
+                                    int &currentBitsLeftInWord, int numBits){
         if (numBits < currentBitsLeftInWord) {
             currentBitsLeftInWord -= numBits;
             currentWord >>= numBits;
         } else {
             numBits -= currentBitsLeftInWord;
-            startReadBits(pData, numBits+32, currentWord, currentBitsLeftInWord);
+            startReadBits(pData, numBits + WordWidth, currentWord, currentBitsLeftInWord);
         }
         /*
          //TODO - dummy implementation, do something better and test it
          for (int i = 0; i < numBits; i++){
-         readNextBit(pData,currentWord,currentBitsLeftInWord);
+         readNextBit(pData, currentWord, currentBitsLeftInWord);
          }*/
     }
 
-    static inline void startReversedReadBits(const void* &pData,int bitOffset,
-                                             uint32_t &currentWord,
+    static inline void startReversedReadBits(const void* &pData, int bitOffset,
+                                             Word &currentWord,
                                              int &currentBitsLeftInWord) {
-        int bitAddress = ((bitOffset-1) & 0x1F)+1; // get lower bits, but 32->32, 0->32
+        int bitAddress = masked(bitOffset-1) + 1; // get lower bits, but 32->32, 0->32
         pData = advance(pData, // get pointer to the correct location
-                        +(bitOffset>>5)
-                        -(bitAddress>>5)); // if bit Address is 32, we read the previous word
-        currentWord = getUInt32(pData) << ((32 - bitAddress) & 0x1F);
+                        +fastDivisionByWordWidth(bitOffset)
+                        -fastDivisionByWordWidth(bitAddress)); // if bit Address is 32, we read the previous word
+        currentWord = getWord(pData) << masked(WordWidth - bitAddress);
         currentBitsLeftInWord = bitAddress;
     }
     
-    static inline uint32_t readPreviousBits(const void* &pData,uint32_t &currentWord,
+    static inline Word readPreviousBits(const void* &pData, Word &currentWord,
                                             int &currentBitsLeftInWord, int numBits) {
         if (numBits > currentBitsLeftInWord) {
             // data is in current word, and previous
             pData = advance(pData, -1); //step pointer backwards
-            uint32_t previousWord = getUInt32(pData);
+            Word previousWord = getWord(pData);
             numBits = numBits - currentBitsLeftInWord; //number of bits needed from the new word
-            uint32_t word = NonNegative(currentWord) >> NonNegative(32 - currentBitsLeftInWord);
-            uint32_t result = (word << numBits) | (previousWord >> (32 - numBits));
+            Word word = NonNegative(currentWord) >> NonNegative(WordWidth - currentBitsLeftInWord);
+            Word result = (word << numBits) | (previousWord >> (WordWidth - numBits));
             currentWord = previousWord << numBits;
-            currentBitsLeftInWord = 32 - numBits;
+            currentBitsLeftInWord = WordWidth - numBits;
             return result;
         }
         else {
             // data is contained in current word alone
-            uint32_t result = (numBits == 0? //we have to guard against 0, cuz >> 32 is undefined
+            Word result = (numBits == 0? //we have to guard against 0, cuz >> 32 is undefined
                                0
-                               :currentWord >> (32 - numBits));
+                               :currentWord >> (WordWidth - numBits));
             currentBitsLeftInWord -= numBits;
             currentWord <<= numBits;
             return result;
@@ -281,14 +321,14 @@ namespace namedstruct {
         return 0;
     }
     
-    static inline int readPreviousBit(const void* &pData,uint32_t &currentWord,int &currentBitsLeftInWord) {
+    static inline int readPreviousBit(const void* &pData, Word &currentWord, int &currentBitsLeftInWord) {
         if (__builtin_expect(currentBitsLeftInWord == 0, 0)) {
             pData = advance(pData, -1); //step pointer backwards
-            currentWord = getUInt32(pData);
-            currentBitsLeftInWord = 32;
+            currentWord = getWord(pData);
+            currentBitsLeftInWord = WordWidth;
         }
         currentBitsLeftInWord -= 1;
-        int32_t result = currentWord >> 31;
+        int32_t result = currentWord >> (WordWidth - 1);
         currentWord <<= 1;
         return result;
     }
