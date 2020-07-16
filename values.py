@@ -532,12 +532,19 @@ class Struct(Value, namedstruct.constants.AddConstantFunctions):
         return self
 
     def addConstants(self, dictionary, ignore_private_symbols=True):
-        """
-        Adds all constants from a dictionary
-        ignore_private_symbols: ignore symbols whose names start with an underscore
+        """Adds all constants from a dictionary.
+
+        Only values that are instances of Value, int, float, bool or str are considered. Everything else is ignored.
+
+        Arguments:
+        dictionary (dict): dictionary containing the names and values of the constants, which can be obtained from a Python module
+            or class via <SymbolName>.__dict__
+
+        Optional keyword arguments:
+        ignore_private_symbols (boolean): ignore symbols whose names start with an underscore; default: True
         """
         for name, value in dictionary.items():
-            if ignore_private_symbols and name.startswith('_'):
+            if not isinstance(value, (Value, int, float, bool, str)) or (ignore_private_symbols and name.startswith('_')):
                 continue
             self.addConstant(name, value)
 
