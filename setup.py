@@ -7,8 +7,8 @@ with open('requirements.txt') as f:
             
 setup(name='namedstruct',
       version='0.1',
-      description='Compressor for sharing system map layers to the bpin format',
-      url='https://github.com/TransitApp/pyTransitTools',
+      description='namedstruct',
+      url='https://github.com/TransitApp/namedstruct',
       author='Transit',
       license="Transit",
       packages=['namedstruct'],
