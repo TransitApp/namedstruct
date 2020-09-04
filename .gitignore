@@ -63,3 +63,4 @@ target/
 *.bin
 
 namedstruct/namedStructTests.h
+.vscode
