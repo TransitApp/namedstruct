@@ -12,6 +12,7 @@ setup(name='namedstruct',
       author='Transit',
       license="Transit",
       packages=['namedstruct'],
+      package_dir={ 'namedstruct': '.'},
       install_requires=required,
       zip_safe=False
 )   
