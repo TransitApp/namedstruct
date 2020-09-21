@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 
 setup(name='namedstruct',
-      version='0.1',
+      version='1.0.0',
       description='namedstruct',
       url='https://github.com/TransitApp/namedstruct',
       author='Transit',
