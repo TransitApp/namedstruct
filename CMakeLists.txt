@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 3.6)
 
-set(RESET_IOS_ENV unset TARGET_DEVICE_MODEL && unset TARGET_DEVICE_OS_VERSION && unset SDKROOT && unset SDK_DIR && unset DEPLOYMENT_TARGET_CLANG_ENV_NAME && unset IPHONEOS_DEPLOYMENT_TARGET)
+set(RESET_IOS_ENV unset TARGET_DEVICE_MODEL && unset TARGET_DEVICE_OS_VERSION && unset SDKROOT && unset SDK_DIR && unset DEPLOYMENT_TARGET_CLANG_ENV_NAME && unset IPHONEOS_DEPLOYMENT_TARGET && export PATH="$$HOME/.pyenv/shims:$$PATH")
 set(CMAKE_XCODE_GENERATE_SCHEME TRUE)
 
 project(namedstruct LANGUAGES CXX C)
@@ -18,7 +18,7 @@ if(APPLE AND ${CMAKE_VERSION} VERSION_GREATER 3.8.2016 AND XCTest_FOUND)
     enable_testing()
 
     xctest_add_bundle(namedstructTests namedstruct
-        ${PROJECT_SOURCE_DIR}/include/namedstruct/localTestFiles
+        ${PROJECT_SOURCE_DIR}/localTestFiles
         include/namedstruct/namedStructTests.h
         include/namedstruct/namedStructTests.mm
         include/namedstruct/shiftTests.mm
@@ -28,7 +28,7 @@ if(APPLE AND ${CMAKE_VERSION} VERSION_GREATER 3.8.2016 AND XCTest_FOUND)
     set_property(TARGET namedstructTests PROPERTY CXX_STANDARD 17)
     set_property(TARGET namedstructTests PROPERTY CXX_STANDARD_REQUIRED ON)
 
-    set_source_files_properties(${PROJECT_SOURCE_DIR}/namedstruct/localTestFiles PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+    set_source_files_properties(${PROJECT_SOURCE_DIR}/localTestFiles PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
 
      add_custom_command(
         OUTPUT ${PROJECT_SOURCE_DIR}/localTestFiles include/namedstruct/namedStructTests.h
