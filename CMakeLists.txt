@@ -10,7 +10,7 @@ add_library(namedstruct include/namedstruct/bits.h include/namedstruct/bits.cpp 
 set_property(TARGET namedstruct PROPERTY CXX_STANDARD 17)
 set_property(TARGET namedstruct PROPERTY CXX_STANDARD_REQUIRED ON)
 
-target_include_directories(namedstruct PUBLIC ${PROJECT_SOURCE_DIR})
+target_include_directories(namedstruct PUBLIC ${PROJECT_SOURCE_DIR}/include)
 
 find_package(XCTest)
 if(APPLE AND ${CMAKE_VERSION} VERSION_GREATER 3.8.2016 AND XCTest_FOUND)
