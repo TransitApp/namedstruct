@@ -62,4 +62,6 @@ target/
 .idea/
 *.bin
 
-namedstruct/namedStructTests.h
+localTestFiles
+include/namedstruct/namedStructTests.h
+.vscode
